@@ -1,6 +1,15 @@
-"""Image conditioning and rectification pipeline (Milestone M5).
+"""Image conditioning pipeline (Milestone M5)."""
 
-This package is part of the frozen structure defined in Architecture
-Specification v1.0. It is intentionally empty at Milestone M0; its modules
-are implemented in the milestone noted above.
-"""
+from adaptivevision.preprocessing.operators import (
+    PreprocessingPipeline,
+    PreprocessStep,
+    ensure_grayscale,
+    normalize_uint8,
+)
+
+__all__ = [
+    "PreprocessStep",
+    "PreprocessingPipeline",
+    "ensure_grayscale",
+    "normalize_uint8",
+]

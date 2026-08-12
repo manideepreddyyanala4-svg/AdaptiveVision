@@ -1,4 +1,4 @@
-"""The application composition root (Milestone M3, extended M4).
+"""The application composition root (Milestone M3, extended M4/M5).
 
 The composition root is the only place that wires concrete implementations to
 the abstraction seams (Architecture Spec v1.0 §19). It reads the validated
@@ -11,6 +11,10 @@ SQLite database, the result repository, and a persistence handler that is wired
 into the station's ``on_result`` hook so results are persisted off the
 inspection critical path.
 
+Milestone M5 adds optional preprocessing and calibration rectification wiring.
+The concrete loaders/operators are still created only here and injected into
+the pipeline as callables.
+
 Nothing else in the codebase constructs these collaborators directly; they are
 injected here and passed down.
 """
@@ -21,8 +25,10 @@ from collections.abc import Callable
 
 from adaptivevision.acquisition.camera import NullCameraDriver
 from adaptivevision.app.station import StationController
+from adaptivevision.calibration import CalibrationRectifier, load_calibration
 from adaptivevision.common.interfaces import CameraDriver
 from adaptivevision.common.result import InspectionResult
+from adaptivevision.common.types import RawFrame, RectifiedFrame
 from adaptivevision.config.settings import StationConfig
 from adaptivevision.orchestration.pipeline import InspectionPipeline
 from adaptivevision.orchestration.scheduler import InspectionScheduler
@@ -31,9 +37,16 @@ from adaptivevision.orchestration.watchdog import CycleWatchdog
 from adaptivevision.persistence.database import open_database
 from adaptivevision.persistence.integration import make_persistence_handler
 from adaptivevision.persistence.repositories import SqliteResultRepository
+from adaptivevision.preprocessing import PreprocessingPipeline, ensure_grayscale
 
 #: Type of the ``on_result`` persistence hook.
 OnResult = Callable[[InspectionResult], None]
+
+#: Type of the preprocessing hook injected into the pipeline.
+Preprocessor = Callable[[RawFrame], RawFrame]
+
+#: Type of the rectification hook injected into the pipeline.
+Rectifier = Callable[[RawFrame], RectifiedFrame]
 
 
 def build_camera(config: StationConfig) -> CameraDriver:
@@ -84,6 +97,37 @@ def build_persistence(config: StationConfig) -> tuple[SqliteResultRepository, On
     return repository, handler
 
 
+def build_preprocessor(config: StationConfig) -> Preprocessor:
+    """Build the deterministic preprocessing stage.
+
+    Args:
+        config: The validated station configuration.
+
+    Returns:
+        A callable that preprocesses raw frames before calibration.
+    """
+    if config.extra.get("PREPROCESS_GRAYSCALE", True) is False:
+        return PreprocessingPipeline().apply
+    return PreprocessingPipeline((ensure_grayscale,)).apply
+
+
+def build_rectifier(config: StationConfig) -> Rectifier | None:
+    """Build an optional calibration rectifier from configuration.
+
+    Args:
+        config: The validated station configuration.
+
+    Returns:
+        A rectification callable when ``CALIBRATION_PATH`` is configured,
+        otherwise ``None`` so uncalibrated skeleton runs remain possible.
+    """
+    calibration_path = config.extra.get("CALIBRATION_PATH")
+    if calibration_path is None:
+        return None
+    calibration = load_calibration(str(calibration_path))
+    return CalibrationRectifier(calibration).apply
+
+
 def build_station(config: StationConfig) -> StationController:
     """Assemble the full station from validated configuration.
 
@@ -100,6 +144,8 @@ def build_station(config: StationConfig) -> StationController:
         camera,
         station_id=config.station_id,
         recipe_ver=config.default_recipe_id or "unset",
+        preprocessor=build_preprocessor(config),
+        rectifier=build_rectifier(config),
     )
     scheduler = InspectionScheduler(pipeline)
     watchdog = CycleWatchdog(config.cycle_timeout_ms)

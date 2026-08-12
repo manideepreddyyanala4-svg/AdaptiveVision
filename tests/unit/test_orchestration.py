@@ -11,6 +11,7 @@ from adaptivevision.app import StationController, build_camera, build_station
 from adaptivevision.common.enums import CameraKind, StationState, Verdict
 from adaptivevision.common.errors import FaultError
 from adaptivevision.common.result import InspectionResult
+from adaptivevision.common.types import RawFrame, RectifiedFrame
 from adaptivevision.config import CameraConfig, StationConfig
 from adaptivevision.orchestration import (
     CycleWatchdog,
@@ -72,6 +73,37 @@ def test_pipeline_run_produces_result() -> None:
     assert result.verdict is Verdict.PASS
     assert result.cycle_time_ms >= 0.0
     assert len(result.image_refs) == 1
+
+
+def test_pipeline_applies_preprocessing_and_rectification() -> None:
+    seen: list[str] = []
+
+    def preprocess(frame: RawFrame) -> RawFrame:
+        seen.append("preprocess")
+        return frame
+
+    def rectify(frame: RawFrame) -> RectifiedFrame:
+        seen.append("rectify")
+        return RectifiedFrame(
+            image=frame.image,
+            camera_id=frame.camera_id,
+            frame_id=frame.frame_id,
+            calibration_ver="calib-v1",
+            timestamp_monotonic=frame.timestamp_monotonic,
+            timestamp_utc=frame.timestamp_utc,
+            trigger_id=frame.trigger_id,
+        )
+
+    pipeline = InspectionPipeline(
+        _camera(),
+        station_id="s1",
+        recipe_ver="1.0",
+        preprocessor=preprocess,
+        rectifier=rectify,
+    )
+    result = pipeline.run("part-1")
+    assert seen == ["preprocess", "rectify"]
+    assert result.calib_ver == "calib-v1"
 
 
 def test_new_inspection_id_unique() -> None:
