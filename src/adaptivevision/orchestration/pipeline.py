@@ -1,12 +1,13 @@
-"""The inspection pipeline (Milestone M3, extended M5).
+"""The inspection pipeline (Milestone M3, extended M5/M6).
 
 The pipeline is the heart of the walking skeleton: it drives one inspection
 cycle by acquiring a frame from the camera driver and producing an
 :class:`~adaptivevision.common.result.InspectionResult`.
 
-M5 adds optional preprocessing and calibration rectification stages. They are
-injected as callables so orchestration stays decoupled from concrete image
-conditioning implementations.
+M5 adds optional preprocessing and calibration rectification stages. M6 adds an
+optional alignment stage that produces a localized part for downstream
+inspectors. These stages are injected as callables so orchestration stays
+decoupled from concrete implementations.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from adaptivevision.alignment import LocalizedPart
 from adaptivevision.common.enums import Verdict
 from adaptivevision.common.interfaces import CameraDriver
 from adaptivevision.common.result import InspectionResult
@@ -23,6 +25,7 @@ from adaptivevision.common.types import RawFrame, RectifiedFrame
 
 Preprocessor = Callable[[RawFrame], RawFrame]
 Rectifier = Callable[[RawFrame], RectifiedFrame]
+Aligner = Callable[[RectifiedFrame], LocalizedPart]
 
 
 def new_inspection_id() -> str:
@@ -47,6 +50,7 @@ class InspectionPipeline:
         recipe_ver: str,
         preprocessor: Preprocessor | None = None,
         rectifier: Rectifier | None = None,
+        aligner: Aligner | None = None,
     ) -> None:
         """Initialize the pipeline."""
         self._camera = camera
@@ -54,6 +58,7 @@ class InspectionPipeline:
         self._recipe_ver = recipe_ver
         self._preprocessor = preprocessor
         self._rectifier = rectifier
+        self._aligner = aligner
 
     def run(self, part_id: str, *, trigger_id: str | None = None) -> InspectionResult:
         """Execute one inspection cycle.
@@ -72,6 +77,7 @@ class InspectionPipeline:
         frame = self._acquire(trigger_id)
         frame = self._preprocess(frame)
         rectified = self._rectify(frame)
+        self._align(rectified)
         cycle_time_ms = (time.monotonic() - started) * 1000.0
 
         return InspectionResult(
@@ -110,3 +116,9 @@ class InspectionPipeline:
                 trigger_id=frame.trigger_id,
             )
         return self._rectifier(frame)
+
+    def _align(self, frame: RectifiedFrame) -> LocalizedPart | None:
+        """Apply the optional alignment stage."""
+        if self._aligner is None:
+            return None
+        return self._aligner(frame)

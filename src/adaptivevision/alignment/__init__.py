@@ -1,6 +1,12 @@
-"""Part localization and golden-reference alignment (Milestone M6).
+"""Part alignment against golden references (Milestone M6)."""
 
-This package is part of the frozen structure defined in Architecture
-Specification v1.0. It is intentionally empty at Milestone M0; its modules
-are implemented in the milestone noted above.
-"""
+from adaptivevision.alignment.model import GoldenReference, LocalizedPart
+from adaptivevision.alignment.reference import ReferenceAligner
+from adaptivevision.alignment.store import load_golden_reference
+
+__all__ = [
+    "GoldenReference",
+    "LocalizedPart",
+    "ReferenceAligner",
+    "load_golden_reference",
+]

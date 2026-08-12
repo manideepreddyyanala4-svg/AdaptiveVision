@@ -1,4 +1,4 @@
-"""The application composition root (Milestone M3, extended M4/M5).
+"""The application composition root (Milestone M3, extended M4/M5/M6).
 
 The composition root is the only place that wires concrete implementations to
 the abstraction seams (Architecture Spec v1.0 §19). It reads the validated
@@ -15,6 +15,8 @@ Milestone M5 adds optional preprocessing and calibration rectification wiring.
 The concrete loaders/operators are still created only here and injected into
 the pipeline as callables.
 
+Milestone M6 adds optional golden-reference alignment wiring.
+
 Nothing else in the codebase constructs these collaborators directly; they are
 injected here and passed down.
 """
@@ -24,6 +26,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from adaptivevision.acquisition.camera import NullCameraDriver
+from adaptivevision.alignment import LocalizedPart, ReferenceAligner, load_golden_reference
 from adaptivevision.app.station import StationController
 from adaptivevision.calibration import CalibrationRectifier, load_calibration
 from adaptivevision.common.interfaces import CameraDriver
@@ -47,6 +50,9 @@ Preprocessor = Callable[[RawFrame], RawFrame]
 
 #: Type of the rectification hook injected into the pipeline.
 Rectifier = Callable[[RawFrame], RectifiedFrame]
+
+#: Type of the alignment hook injected into the pipeline.
+Aligner = Callable[[RectifiedFrame], LocalizedPart]
 
 
 def build_camera(config: StationConfig) -> CameraDriver:
@@ -128,6 +134,23 @@ def build_rectifier(config: StationConfig) -> Rectifier | None:
     return CalibrationRectifier(calibration).apply
 
 
+def build_aligner(config: StationConfig) -> Aligner | None:
+    """Build an optional golden-reference aligner from configuration.
+
+    Args:
+        config: The validated station configuration.
+
+    Returns:
+        An alignment callable when ``REFERENCE_PATH`` is configured, otherwise
+        ``None`` so skeleton runs remain possible.
+    """
+    reference_path = config.extra.get("REFERENCE_PATH")
+    if reference_path is None:
+        return None
+    reference = load_golden_reference(str(reference_path))
+    return ReferenceAligner(reference).align
+
+
 def build_station(config: StationConfig) -> StationController:
     """Assemble the full station from validated configuration.
 
@@ -146,6 +169,7 @@ def build_station(config: StationConfig) -> StationController:
         recipe_ver=config.default_recipe_id or "unset",
         preprocessor=build_preprocessor(config),
         rectifier=build_rectifier(config),
+        aligner=build_aligner(config),
     )
     scheduler = InspectionScheduler(pipeline)
     watchdog = CycleWatchdog(config.cycle_timeout_ms)

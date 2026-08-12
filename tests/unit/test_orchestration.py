@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from adaptivevision.acquisition import NullCameraDriver
+from adaptivevision.alignment import LocalizedPart
 from adaptivevision.app import StationController, build_camera, build_station
 from adaptivevision.common.enums import CameraKind, StationState, Verdict
 from adaptivevision.common.errors import FaultError
@@ -104,6 +105,50 @@ def test_pipeline_applies_preprocessing_and_rectification() -> None:
     result = pipeline.run("part-1")
     assert seen == ["preprocess", "rectify"]
     assert result.calib_ver == "calib-v1"
+
+
+def test_pipeline_applies_alignment_after_rectification() -> None:
+    seen: list[str] = []
+
+    def rectify(frame: RawFrame) -> RectifiedFrame:
+        seen.append("rectify")
+        return RectifiedFrame(
+            image=frame.image,
+            camera_id=frame.camera_id,
+            frame_id=frame.frame_id,
+            calibration_ver="calib-v1",
+            timestamp_monotonic=frame.timestamp_monotonic,
+            timestamp_utc=frame.timestamp_utc,
+            trigger_id=frame.trigger_id,
+        )
+
+    def align(frame: RectifiedFrame) -> LocalizedPart:
+        seen.append("align")
+        return LocalizedPart(
+            frame=frame,
+            pose=frame_pose(),
+            reference_id="golden",
+            reference_ver="ref-v1",
+            score=1.0,
+        )
+
+    pipeline = InspectionPipeline(
+        _camera(),
+        station_id="s1",
+        recipe_ver="1.0",
+        rectifier=rectify,
+        aligner=align,
+    )
+    result = pipeline.run("part-1")
+    assert seen == ["rectify", "align"]
+    assert result.calib_ver == "calib-v1"
+
+
+def frame_pose():
+    """Return a nominal test pose."""
+    from adaptivevision.common.types import Pose
+
+    return Pose(0.0, 0.0, 0.0)
 
 
 def test_new_inspection_id_unique() -> None:
