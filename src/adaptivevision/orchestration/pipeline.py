@@ -1,4 +1,4 @@
-"""The inspection pipeline (Milestone M3, extended M5/M6).
+"""The inspection pipeline (Milestone M3, extended M5/M6/M7).
 
 The pipeline is the heart of the walking skeleton: it drives one inspection
 cycle by acquiring a frame from the camera driver and producing an
@@ -19,9 +19,10 @@ from datetime import UTC, datetime
 
 from adaptivevision.alignment import LocalizedPart
 from adaptivevision.common.enums import Verdict
-from adaptivevision.common.interfaces import CameraDriver
-from adaptivevision.common.result import InspectionResult
+from adaptivevision.common.interfaces import CameraDriver, Inspector
+from adaptivevision.common.result import InspectionResult, MetrologyResult
 from adaptivevision.common.types import RawFrame, RectifiedFrame
+from adaptivevision.recipe import Recipe
 
 Preprocessor = Callable[[RawFrame], RawFrame]
 Rectifier = Callable[[RawFrame], RectifiedFrame]
@@ -51,6 +52,8 @@ class InspectionPipeline:
         preprocessor: Preprocessor | None = None,
         rectifier: Rectifier | None = None,
         aligner: Aligner | None = None,
+        recipe: Recipe | None = None,
+        metrology_inspector: Inspector[LocalizedPart, Recipe] | None = None,
     ) -> None:
         """Initialize the pipeline."""
         self._camera = camera
@@ -59,6 +62,8 @@ class InspectionPipeline:
         self._preprocessor = preprocessor
         self._rectifier = rectifier
         self._aligner = aligner
+        self._recipe = recipe
+        self._metrology_inspector = metrology_inspector
 
     def run(self, part_id: str, *, trigger_id: str | None = None) -> InspectionResult:
         """Execute one inspection cycle.
@@ -77,19 +82,24 @@ class InspectionPipeline:
         frame = self._acquire(trigger_id)
         frame = self._preprocess(frame)
         rectified = self._rectify(frame)
-        self._align(rectified)
+        part = self._align(rectified)
+        metrology = self._inspect_metrology(part)
         cycle_time_ms = (time.monotonic() - started) * 1000.0
+        defects = metrology.defects if metrology is not None else ()
+        measurements = metrology.measurements if metrology is not None else ()
 
         return InspectionResult(
             inspection_id=new_inspection_id(),
             part_id=part_id,
             station_id=self._station_id,
-            verdict=Verdict.PASS,
+            verdict=Verdict.FAIL if defects else Verdict.PASS,
             recipe_ver=self._recipe_ver,
             model_ver="",
             calib_ver=rectified.calibration_ver,
             cycle_time_ms=cycle_time_ms,
             timestamp_utc=datetime.now(UTC),
+            measurements=measurements,
+            defects=defects,
             image_refs=(rectified.frame_id,),
         )
 
@@ -122,3 +132,13 @@ class InspectionPipeline:
         if self._aligner is None:
             return None
         return self._aligner(frame)
+
+    def _inspect_metrology(self, part: LocalizedPart | None) -> MetrologyResult | None:
+        """Apply the optional M7 metrology stage."""
+        if part is None or self._recipe is None or self._metrology_inspector is None:
+            return None
+        partial = self._metrology_inspector.inspect(part, self._recipe)
+        if not isinstance(partial, MetrologyResult):
+            msg = "Metrology inspector must return MetrologyResult"
+            raise TypeError(msg)
+        return partial

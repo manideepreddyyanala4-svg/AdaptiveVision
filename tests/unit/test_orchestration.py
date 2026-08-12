@@ -12,8 +12,9 @@ from adaptivevision.app import StationController, build_camera, build_station
 from adaptivevision.common.enums import CameraKind, StationState, Verdict
 from adaptivevision.common.errors import FaultError
 from adaptivevision.common.result import InspectionResult
-from adaptivevision.common.types import RawFrame, RectifiedFrame
+from adaptivevision.common.types import MeasurementSpec, Pose, RawFrame, RectifiedFrame, Tolerance
 from adaptivevision.config import CameraConfig, StationConfig
+from adaptivevision.inspection.metrology import MetrologyInspector, StaticMeasurementSource
 from adaptivevision.orchestration import (
     CycleWatchdog,
     InspectionPipeline,
@@ -21,6 +22,7 @@ from adaptivevision.orchestration import (
     StationStateMachine,
     new_inspection_id,
 )
+from adaptivevision.recipe import Recipe
 
 # --- State machine -----------------------------------------------------------
 
@@ -146,9 +148,69 @@ def test_pipeline_applies_alignment_after_rectification() -> None:
 
 def frame_pose():
     """Return a nominal test pose."""
-    from adaptivevision.common.types import Pose
-
     return Pose(0.0, 0.0, 0.0)
+
+
+def _aligned_part(frame: RectifiedFrame) -> LocalizedPart:
+    return LocalizedPart(
+        frame=frame,
+        pose=frame_pose(),
+        reference_id="golden",
+        reference_ver="ref-v1",
+        score=1.0,
+    )
+
+
+def _metrology_recipe() -> Recipe:
+    return Recipe(
+        recipe_id="recipe-1",
+        version="v1",
+        measurement_specs=(
+            MeasurementSpec(
+                name="width",
+                nominal=10.0,
+                tolerance=Tolerance(minus=0.2, plus=0.2),
+                unit="mm",
+            ),
+        ),
+    )
+
+
+def test_pipeline_includes_metrology_measurements() -> None:
+    def align(frame: RectifiedFrame) -> LocalizedPart:
+        return _aligned_part(frame)
+
+    inspector = MetrologyInspector(StaticMeasurementSource({"width": 10.1}).measure)
+    pipeline = InspectionPipeline(
+        _camera(),
+        station_id="s1",
+        recipe_ver="v1",
+        aligner=align,
+        recipe=_metrology_recipe(),
+        metrology_inspector=inspector,
+    )
+    result = pipeline.run("part-1")
+    assert result.verdict is Verdict.PASS
+    assert result.measurements[0].name == "width"
+    assert result.defects == ()
+
+
+def test_pipeline_fails_on_metrology_defects() -> None:
+    def align(frame: RectifiedFrame) -> LocalizedPart:
+        return _aligned_part(frame)
+
+    inspector = MetrologyInspector(StaticMeasurementSource({"width": 11.0}).measure)
+    pipeline = InspectionPipeline(
+        _camera(),
+        station_id="s1",
+        recipe_ver="v1",
+        aligner=align,
+        recipe=_metrology_recipe(),
+        metrology_inspector=inspector,
+    )
+    result = pipeline.run("part-1")
+    assert result.verdict is Verdict.FAIL
+    assert len(result.defects) == 1
 
 
 def test_new_inspection_id_unique() -> None:
