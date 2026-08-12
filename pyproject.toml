@@ -11,13 +11,16 @@ requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [{ name = "AdaptiveVision Team" }]
 keywords = ["computer-vision", "aoi", "metrology", "edge-ai", "industrial"]
-# No runtime dependencies at Milestone M0 - the logging bootstrap uses only the
-# standard library. Dependencies are added by the milestone that first needs them.
-dependencies = []
+# Runtime dependencies are added by the milestone that first needs them.
+# Milestone M4 introduces SQLAlchemy for the local edge persistence layer.
+dependencies = [
+    "sqlalchemy>=2.0,<3",
+]
 
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6",
+
     "black>=24.0",
     "mypy>=1.11",
     "numpy>=1.26,<2",  # type-only (frame Image alias); stubs must parse under py311

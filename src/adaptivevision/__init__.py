@@ -7,7 +7,9 @@ only the package version at Milestone M0.
 
 from __future__ import annotations
 
-__all__ = ["__version__"]
+from adaptivevision import logging_setup
+
+__all__ = ["__version__", "logging_setup"]
 
 #: Semantic version of the platform. Kept in sync with ``pyproject.toml``.
 #: A metadata-driven version is deferred until packaging matures.
