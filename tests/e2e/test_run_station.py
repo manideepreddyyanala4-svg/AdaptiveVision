@@ -1,7 +1,9 @@
-"""End-to-end test for the M0 boot entrypoint (``scripts/run_station.py``).
+"""End-to-end test for the M3 boot entrypoint (``scripts/run_station.py``).
 
-This directly exercises the milestone acceptance criterion: booting emits one
-structured log line that carries a populated ``correlation_id`` field.
+This directly exercises the milestone acceptance criterion: booting builds the
+walking skeleton through the composition root, runs a demo inspection cycle
+against the null-object camera, and shuts down cleanly, emitting structured log
+lines throughout.
 """
 
 from __future__ import annotations
@@ -26,11 +28,19 @@ def test_run_station_exits_cleanly_and_emits_boot_line() -> None:
     assert result.returncode == 0, result.stderr
 
     lines = [line for line in result.stdout.splitlines() if line.strip()]
-    assert len(lines) == 1, f"expected exactly one log line, got: {lines!r}"
+    payloads = [json.loads(line) for line in lines]
 
-    payload = json.loads(lines[-1])
-    assert payload["message"] == "AdaptiveVision station starting"
-    assert payload["level"] == "INFO"
-    assert payload["correlation_id"].startswith("boot-")
-    assert payload["state"] == "INIT"
-    assert payload["milestone"] == "M0"
+    booted = next(p for p in payloads if p["message"] == "AdaptiveVision station booted")
+    assert booted["level"] == "INFO"
+    assert booted["correlation_id"].startswith("boot-")
+    assert booted["state"] == "idle"
+    assert booted["milestone"] == "M3"
+    assert booted["station_id"] == "station-01"
+
+    inspection = next(p for p in payloads if p["message"] == "Inspection complete")
+    assert inspection["part_id"] == "demo-part-001"
+    assert inspection["verdict"] == "pass"
+
+    stopped = next(p for p in payloads if p["message"] == "AdaptiveVision station stopped")
+    assert stopped["state"] == "shutdown"
+    assert stopped["milestone"] == "M3"
