@@ -8,7 +8,11 @@ import numpy as np
 import pytest
 
 from adaptivevision.common.types import RawFrame
-from adaptivevision.preprocessing import PreprocessingPipeline, ensure_grayscale, normalize_uint8
+from adaptivevision.preprocessing import (
+    PreprocessingPipeline,
+    ensure_grayscale,
+    normalize_uint8,
+)
 
 
 def _frame(image: np.ndarray) -> RawFrame:

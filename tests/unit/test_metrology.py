@@ -9,7 +9,10 @@ import numpy as np
 from adaptivevision.alignment import LocalizedPart
 from adaptivevision.common.result import MetrologyResult
 from adaptivevision.common.types import MeasurementSpec, Pose, RectifiedFrame, Tolerance
-from adaptivevision.inspection.metrology import MetrologyInspector, StaticMeasurementSource
+from adaptivevision.inspection.metrology import (
+    MetrologyInspector,
+    StaticMeasurementSource,
+)
 from adaptivevision.recipe import Recipe
 
 

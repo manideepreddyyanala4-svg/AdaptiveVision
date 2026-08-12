@@ -26,7 +26,11 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from adaptivevision.acquisition.camera import NullCameraDriver
-from adaptivevision.alignment import LocalizedPart, ReferenceAligner, load_golden_reference
+from adaptivevision.alignment import (
+    LocalizedPart,
+    ReferenceAligner,
+    load_golden_reference,
+)
 from adaptivevision.app.station import StationController
 from adaptivevision.calibration import CalibrationRectifier, load_calibration
 from adaptivevision.common.interfaces import CameraDriver

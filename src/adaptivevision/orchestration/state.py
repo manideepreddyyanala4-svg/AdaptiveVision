@@ -26,7 +26,12 @@ _TRANSITIONS: dict[StationState, frozenset[StationState]] = {
         {StationState.IDLE, StationState.FAULT, StationState.SHUTDOWN}
     ),
     StationState.IDLE: frozenset(
-        {StationState.READY, StationState.CALIBRATION, StationState.FAULT, StationState.SHUTDOWN}
+        {
+            StationState.READY,
+            StationState.CALIBRATION,
+            StationState.FAULT,
+            StationState.SHUTDOWN,
+        }
     ),
     StationState.CALIBRATION: frozenset(
         {StationState.IDLE, StationState.FAULT, StationState.SHUTDOWN}
@@ -35,13 +40,28 @@ _TRANSITIONS: dict[StationState, frozenset[StationState]] = {
         {StationState.READY, StationState.FAULT, StationState.SHUTDOWN}
     ),
     StationState.READY: frozenset(
-        {StationState.RUNNING, StationState.IDLE, StationState.FAULT, StationState.SHUTDOWN}
+        {
+            StationState.RUNNING,
+            StationState.IDLE,
+            StationState.FAULT,
+            StationState.SHUTDOWN,
+        }
     ),
     StationState.RUNNING: frozenset(
-        {StationState.READY, StationState.PAUSED, StationState.FAULT, StationState.SHUTDOWN}
+        {
+            StationState.READY,
+            StationState.PAUSED,
+            StationState.FAULT,
+            StationState.SHUTDOWN,
+        }
     ),
     StationState.PAUSED: frozenset(
-        {StationState.RUNNING, StationState.READY, StationState.FAULT, StationState.SHUTDOWN}
+        {
+            StationState.RUNNING,
+            StationState.READY,
+            StationState.FAULT,
+            StationState.SHUTDOWN,
+        }
     ),
     StationState.FAULT: frozenset(
         {StationState.MAINTENANCE, StationState.ESTOP, StationState.SHUTDOWN}

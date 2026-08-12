@@ -256,7 +256,7 @@ class Measurement:
             name=data["name"],
             value=data["value"],
             unit=data["unit"],
-            spec=MeasurementSpec.from_dict(spec_data) if spec_data is not None else None,
+            spec=(MeasurementSpec.from_dict(spec_data) if spec_data is not None else None),
             in_tolerance=data.get("in_tolerance"),
         )
 

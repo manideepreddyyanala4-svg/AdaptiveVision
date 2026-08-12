@@ -89,7 +89,10 @@ class SqliteResultRepository(ResultRepository):
             with self._session_factory() as session:
                 records = session.scalars(
                     select(InspectionRecord)
-                    .order_by(InspectionRecord.timestamp_utc.desc(), InspectionRecord.id.desc())
+                    .order_by(
+                        InspectionRecord.timestamp_utc.desc(),
+                        InspectionRecord.id.desc(),
+                    )
                     .limit(limit)
                     .offset(offset)
                 ).all()

@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 from adaptivevision.common.enums import CameraKind, ExecutionProvider
-from adaptivevision.config import CameraConfig, StationConfig, load_config, load_env_file
+from adaptivevision.config import (
+    CameraConfig,
+    StationConfig,
+    load_config,
+    load_env_file,
+)
 
 
 def test_station_config_defaults() -> None:

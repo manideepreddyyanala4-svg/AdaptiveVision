@@ -65,7 +65,9 @@ def make_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
-def open_database(path: str | Path | None = None) -> tuple[Engine, sessionmaker[Session]]:
+def open_database(
+    path: str | Path | None = None,
+) -> tuple[Engine, sessionmaker[Session]]:
     """Open (and initialize) the local edge database.
 
     Args:

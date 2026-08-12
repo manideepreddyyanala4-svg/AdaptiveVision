@@ -20,7 +20,11 @@ import uuid
 from adaptivevision import __version__
 from adaptivevision.app import build_station
 from adaptivevision.config import load_config
-from adaptivevision.logging_setup import configure_logging, correlation_context, get_logger
+from adaptivevision.logging_setup import (
+    configure_logging,
+    correlation_context,
+    get_logger,
+)
 
 
 def main() -> int:

@@ -16,7 +16,11 @@ import pytest
 
 from adaptivevision.common import interfaces
 from adaptivevision.common.enums import Verdict
-from adaptivevision.common.result import AnomalyResult, InspectionResult, MetrologyResult
+from adaptivevision.common.result import (
+    AnomalyResult,
+    InspectionResult,
+    MetrologyResult,
+)
 from adaptivevision.common.types import ROI, RawFrame, RectifiedFrame
 
 ABSTRACT_INTERFACES = [

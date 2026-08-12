@@ -25,7 +25,10 @@ from adaptivevision.persistence.database import (
     session_scope,
 )
 from adaptivevision.persistence.image_store import ImageStoreError, LocalImageStore
-from adaptivevision.persistence.integration import PersistenceHandler, make_persistence_handler
+from adaptivevision.persistence.integration import (
+    PersistenceHandler,
+    make_persistence_handler,
+)
 from adaptivevision.persistence.models_orm import InspectionRecord
 from adaptivevision.persistence.repositories import SqliteResultRepository
 from adaptivevision.persistence.traceability import (
@@ -153,11 +156,15 @@ def test_repository_save_and_get_roundtrip(repository: SqliteResultRepository) -
     assert restored == original
 
 
-def test_repository_get_missing_returns_none(repository: SqliteResultRepository) -> None:
+def test_repository_get_missing_returns_none(
+    repository: SqliteResultRepository,
+) -> None:
     assert repository.get_result("does-not-exist") is None
 
 
-def test_repository_list_orders_most_recent_first(repository: SqliteResultRepository) -> None:
+def test_repository_list_orders_most_recent_first(
+    repository: SqliteResultRepository,
+) -> None:
     older = _result(
         inspection_id="insp-old",
         timestamp_utc=datetime(2026, 1, 1, tzinfo=UTC),
@@ -172,7 +179,9 @@ def test_repository_list_orders_most_recent_first(repository: SqliteResultReposi
     assert [r.inspection_id for r in results] == ["insp-new", "insp-old"]
 
 
-def test_repository_list_respects_limit_and_offset(repository: SqliteResultRepository) -> None:
+def test_repository_list_respects_limit_and_offset(
+    repository: SqliteResultRepository,
+) -> None:
     for i in range(5):
         repository.save_result(
             _result(
@@ -184,7 +193,9 @@ def test_repository_list_respects_limit_and_offset(repository: SqliteResultRepos
     assert len(page) == 2
 
 
-def test_repository_preserves_verdict_and_lineage(repository: SqliteResultRepository) -> None:
+def test_repository_preserves_verdict_and_lineage(
+    repository: SqliteResultRepository,
+) -> None:
     original = _result(verdict=Verdict.FAIL)
     repository.save_result(original)
     restored = repository.get_result("insp-1")
@@ -267,7 +278,9 @@ def test_image_store_evicts_oldest_when_bounded(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_persistence_handler_persists_result(repository: SqliteResultRepository) -> None:
+def test_persistence_handler_persists_result(
+    repository: SqliteResultRepository,
+) -> None:
     handler = PersistenceHandler(repository)
     handler.on_result(_result())
     assert repository.get_result("insp-1") is not None
@@ -281,7 +294,9 @@ def test_make_persistence_handler_returns_callable(
     assert repository.get_result("insp-1") is not None
 
 
-def test_persistence_handler_swallows_failures(repository: SqliteResultRepository) -> None:
+def test_persistence_handler_swallows_failures(
+    repository: SqliteResultRepository,
+) -> None:
     # A duplicate inspection id forces a storage failure; the handler must log
     # and swallow it rather than raise, keeping the inspection loop alive.
     handler = PersistenceHandler(repository)

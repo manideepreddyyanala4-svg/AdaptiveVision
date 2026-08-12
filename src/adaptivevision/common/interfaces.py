@@ -27,7 +27,11 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from adaptivevision.common.result import AnomalyResult, InspectionResult, PartialResult
+    from adaptivevision.common.result import (
+        AnomalyResult,
+        InspectionResult,
+        PartialResult,
+    )
     from adaptivevision.common.types import ROI, Image, RawFrame, RectifiedFrame
 
 #: The aligned-part input to an inspector (concrete type defined in M6).

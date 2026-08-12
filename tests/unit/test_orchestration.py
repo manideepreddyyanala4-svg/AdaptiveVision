@@ -12,9 +12,18 @@ from adaptivevision.app import StationController, build_camera, build_station
 from adaptivevision.common.enums import CameraKind, StationState, Verdict
 from adaptivevision.common.errors import FaultError
 from adaptivevision.common.result import InspectionResult
-from adaptivevision.common.types import MeasurementSpec, Pose, RawFrame, RectifiedFrame, Tolerance
+from adaptivevision.common.types import (
+    MeasurementSpec,
+    Pose,
+    RawFrame,
+    RectifiedFrame,
+    Tolerance,
+)
 from adaptivevision.config import CameraConfig, StationConfig
-from adaptivevision.inspection.metrology import MetrologyInspector, StaticMeasurementSource
+from adaptivevision.inspection.metrology import (
+    MetrologyInspector,
+    StaticMeasurementSource,
+)
 from adaptivevision.orchestration import (
     CycleWatchdog,
     InspectionPipeline,
