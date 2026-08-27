@@ -30,6 +30,9 @@ if TYPE_CHECKING:
     #: Alias for a raw image buffer. Runtime NumPy is introduced at Milestone M3.
     Image = np.ndarray[Any, np.dtype[Any]]
 
+    #: Alias for a fixed-length embedding vector (Milestone M19).
+    Embedding = np.ndarray[Any, np.dtype[np.float32]]
+
 
 @dataclass(frozen=True, slots=True)
 class ROI:

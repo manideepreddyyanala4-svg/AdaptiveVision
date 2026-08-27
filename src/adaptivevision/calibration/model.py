@@ -55,7 +55,9 @@ class CameraCalibration:
         if self.pixel_size_mm <= 0.0:
             msg = "CameraCalibration.pixel_size_mm must be positive"
             raise CalibrationError(msg)
-        if len(self.intrinsic_matrix) != 3 or any(len(row) != 3 for row in self.intrinsic_matrix):
+        if len(self.intrinsic_matrix) != 3 or any(
+            len(row) != 3 for row in self.intrinsic_matrix
+        ):
             msg = "CameraCalibration.intrinsic_matrix must be 3x3"
             raise CalibrationError(msg)
 

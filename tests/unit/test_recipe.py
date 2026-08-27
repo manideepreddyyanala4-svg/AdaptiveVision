@@ -76,7 +76,9 @@ def test_decision_policy_validation() -> None:
 
 
 def test_decision_policy_roundtrip() -> None:
-    policy = DecisionPolicy(anomaly_threshold=0.8, review_on_anomaly=True, max_defects=3)
+    policy = DecisionPolicy(
+        anomaly_threshold=0.8, review_on_anomaly=True, max_defects=3
+    )
     assert DecisionPolicy.from_dict(policy.to_dict()) == policy
 
 

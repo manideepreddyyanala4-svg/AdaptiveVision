@@ -1,0 +1,23 @@
+# Exclude non-runtime artifacts from the edge image build context.
+.git
+.gitignore
+.env
+.env.example
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+tests
+scripts
+docs
+deploy
+data
+models
+calibration
+configs
+recipes
+dashboard

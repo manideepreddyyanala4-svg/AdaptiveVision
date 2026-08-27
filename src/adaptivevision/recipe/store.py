@@ -107,6 +107,8 @@ class JsonRecipeStore(RecipeStore[Recipe]):
             msg = f"Invalid recipe {recipe_id!r}: {exc}"
             raise RecipeError(msg) from exc
         if recipe.recipe_id != recipe_id:
-            msg = f"Recipe id mismatch: file {recipe_id!r}, content {recipe.recipe_id!r}"
+            msg = (
+                f"Recipe id mismatch: file {recipe_id!r}, content {recipe.recipe_id!r}"
+            )
             raise RecipeError(msg)
         return recipe

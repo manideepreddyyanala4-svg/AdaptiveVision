@@ -33,7 +33,9 @@ def test_defect_roundtrip_full_and_minimal() -> None:
 
 
 def test_metrology_result_roundtrip() -> None:
-    partial = result.MetrologyResult(measurements=(_measurement(),), defects=(_defect(),))
+    partial = result.MetrologyResult(
+        measurements=(_measurement(),), defects=(_defect(),)
+    )
     assert result.MetrologyResult.from_dict(partial.to_dict()) == partial
 
 

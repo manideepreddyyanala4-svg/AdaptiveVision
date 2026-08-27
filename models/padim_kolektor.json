@@ -1,0 +1,9 @@
+{
+  "dataset": "kolektor",
+  "category": null,
+  "height": 224,
+  "width": 80,
+  "backbone": "resnet18",
+  "pooled": false,
+  "test_auroc": 0.943
+}

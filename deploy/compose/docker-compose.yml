@@ -1,0 +1,55 @@
+# AdaptiveVision edge observability stack (Milestone M18).
+#
+# Brings up the AdaptiveVision API alongside Prometheus (metrics scraping) and
+# Grafana (dashboards) for edge monitoring.
+#
+#   docker compose -f deploy/compose/docker-compose.yml up --build
+#
+# Services:
+#   api         - AdaptiveVision HTTP API (results, metrics, health, dashboard)
+#   prometheus  - scrapes the API /metrics endpoint
+#   grafana     - pre-provisioned Prometheus datasource + dashboard
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: adaptivevision:edge
+    container_name: adaptivevision-api
+    ports:
+      - "8000:8000"
+    environment:
+      ADAPTIVEVISION_STATION_ID: station-01
+      ADAPTIVEVISION_LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: adaptivevision-prometheus
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: adaptivevision-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus

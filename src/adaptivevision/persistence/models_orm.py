@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for the local edge database (Milestone M4).
+"""SQLAlchemy ORM models for the local edge database (Milestone M4; M19 adds advisory).
 
 These models are the *persistence* representation of an inspection result. They
 are deliberately kept completely separate from the M1 domain models in
@@ -13,6 +13,10 @@ calibration versions) are stored as first-class columns so they can be queried
 directly; the richer, nested result data (measurements, defects, image
 references) is serialized to JSON columns via the domain ``to_dict`` /
 ``from_dict`` contract.
+
+Milestone M19 adds :class:`AdvisoryRecord` as a *second*, independent table -
+it never modifies :class:`InspectionRecord`, matching the read-only relation
+between an inspection and its (optional) advisory report.
 """
 
 from __future__ import annotations
@@ -65,3 +69,28 @@ class InspectionRecord(Base):
     anomaly_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     image_refs_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     traceability_json: Mapped[str] = mapped_column(Text, default="")
+
+
+class AdvisoryRecord(Base):
+    """ORM model for a single persisted advisory report (Milestone M19).
+
+    Independent of :class:`InspectionRecord`: an inspection may have zero or
+    one advisory report, linked only by ``inspection_id`` (no foreign-key
+    constraint, matching this schema's JSON-column style of keeping the
+    tables loosely coupled).
+
+    Attributes:
+        id: Surrogate primary key.
+        inspection_id: Identifier of the inspection this report explains.
+        evidence_json: Serialized :class:`~adaptivevision.common.result.InspectionEvidence`.
+        report_json: Serialized :class:`~adaptivevision.common.result.AdvisoryReport`.
+        created_at: Time the report was persisted (timezone-aware, UTC).
+    """
+
+    __tablename__ = "advisory_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    inspection_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    report_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

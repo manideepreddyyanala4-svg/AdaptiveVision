@@ -14,19 +14,30 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
 from adaptivevision.alignment import LocalizedPart
 from adaptivevision.common.enums import Verdict
-from adaptivevision.common.interfaces import CameraDriver, Inspector
-from adaptivevision.common.result import InspectionResult, MetrologyResult
+from adaptivevision.common.interfaces import AnomalyDetector, CameraDriver, Inspector
+from adaptivevision.common.result import (
+    AnomalyResult,
+    InspectionResult,
+    MetrologyResult,
+    PartialResult,
+)
 from adaptivevision.common.types import RawFrame, RectifiedFrame
+from adaptivevision.decision import DecisionPolicy
 from adaptivevision.recipe import Recipe
 
 Preprocessor = Callable[[RawFrame], RawFrame]
 Rectifier = Callable[[RawFrame], RectifiedFrame]
 Aligner = Callable[[RectifiedFrame], LocalizedPart]
+
+
+def _defects_of(partial: PartialResult) -> tuple[object, ...]:
+    """Return the defects carried by a partial result, if any."""
+    return getattr(partial, "defects", ())
 
 
 def new_inspection_id() -> str:
@@ -54,6 +65,8 @@ class InspectionPipeline:
         aligner: Aligner | None = None,
         recipe: Recipe | None = None,
         metrology_inspector: Inspector[LocalizedPart, Recipe] | None = None,
+        anomaly_detector: AnomalyDetector | None = None,
+        decision_policy: DecisionPolicy | None = None,
     ) -> None:
         """Initialize the pipeline."""
         self._camera = camera
@@ -64,6 +77,8 @@ class InspectionPipeline:
         self._aligner = aligner
         self._recipe = recipe
         self._metrology_inspector = metrology_inspector
+        self._anomaly_detector = anomaly_detector
+        self._decision_policy = decision_policy
 
     def run(self, part_id: str, *, trigger_id: str | None = None) -> InspectionResult:
         """Execute one inspection cycle.
@@ -84,22 +99,25 @@ class InspectionPipeline:
         rectified = self._rectify(frame)
         part = self._align(rectified)
         metrology = self._inspect_metrology(part)
+        anomaly = self._inspect_anomaly(rectified)
         cycle_time_ms = (time.monotonic() - started) * 1000.0
-        defects = metrology.defects if metrology is not None else ()
         measurements = metrology.measurements if metrology is not None else ()
+        partials = [p for p in (metrology, anomaly) if p is not None]
+        verdict = self._decide(partials)
 
         return InspectionResult(
             inspection_id=new_inspection_id(),
             part_id=part_id,
             station_id=self._station_id,
-            verdict=Verdict.FAIL if defects else Verdict.PASS,
+            verdict=verdict,
             recipe_ver=self._recipe_ver,
             model_ver="",
             calib_ver=rectified.calibration_ver,
             cycle_time_ms=cycle_time_ms,
             timestamp_utc=datetime.now(UTC),
             measurements=measurements,
-            defects=defects,
+            defects=tuple(d for p in partials for d in p.defects),
+            anomaly_score=anomaly.score if anomaly is not None else None,
             image_refs=(rectified.frame_id,),
         )
 
@@ -142,3 +160,20 @@ class InspectionPipeline:
             msg = "Metrology inspector must return MetrologyResult"
             raise TypeError(msg)
         return partial
+
+    def _inspect_anomaly(self, frame: RectifiedFrame) -> AnomalyResult | None:
+        """Apply the optional M9 anomaly detection stage."""
+        if self._anomaly_detector is None:
+            return None
+        partial = self._anomaly_detector.detect(frame)
+        if not isinstance(partial, AnomalyResult):
+            msg = "Anomaly detector must return AnomalyResult"
+            raise TypeError(msg)
+        return partial
+
+    def _decide(self, partials: Sequence[PartialResult]) -> Verdict:
+        """Fuse partial results into a verdict using the M10 decision policy."""
+        if self._decision_policy is None:
+            defects = [d for p in partials for d in _defects_of(p)]
+            return Verdict.FAIL if defects else Verdict.PASS
+        return self._decision_policy.decide(partials).verdict

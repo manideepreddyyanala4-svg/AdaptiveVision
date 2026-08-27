@@ -77,7 +77,8 @@ class MetrologyInspector(Inspector[LocalizedPart, Recipe]):
                         defect_class=DefectClass.DIMENSIONAL,
                         severity=Severity.MAJOR,
                         description=(
-                            f"Measurement {spec.name!r}={value} {spec.unit} " f"outside tolerance"
+                            f"Measurement {spec.name!r}={value} {spec.unit} "
+                            f"outside tolerance"
                         ),
                     )
                 )

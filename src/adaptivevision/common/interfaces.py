@@ -1,11 +1,12 @@
 """Abstraction seams for AdaptiveVision.
 
-These eight abstract base classes are the boundaries the domain and
-orchestration layers depend on; concrete adapters are injected at the
-composition root (Architecture Spec v1.0 §19). Per frozen decision 1 every seam
-is an ABC (not a Protocol), giving explicit subclassing and the "cannot be
-instantiated directly" guarantee that the Milestone M3 null-object strategy
-relies on.
+These abstract base classes are the boundaries the domain and orchestration
+layers depend on; concrete adapters are injected at the composition root
+(Architecture Spec v1.0 §19). Per frozen decision 1 every seam is an ABC (not a
+Protocol), giving explicit subclassing and the "cannot be instantiated
+directly" guarantee that the Milestone M3 null-object strategy relies on.
+``RetrievalIndex``, ``AdvisoryEngine``, and ``AdvisoryRepository`` were added
+at Milestone M19.
 
 Two seams consume aggregates that are defined in later milestones - the aligned
 part and the recipe. They are declared generic over :data:`PartT` and
@@ -26,13 +27,17 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from pathlib import Path
 
     from adaptivevision.common.result import (
+        AdvisoryReport,
         AnomalyResult,
+        InspectionEvidence,
         InspectionResult,
         PartialResult,
+        RetrievalMatch,
     )
-    from adaptivevision.common.types import ROI, Image, RawFrame, RectifiedFrame
+    from adaptivevision.common.types import ROI, Embedding, Image, RawFrame, RectifiedFrame
 
 #: The aligned-part input to an inspector (concrete type defined in M6).
 PartT = TypeVar("PartT")
@@ -305,3 +310,93 @@ class RecipeStore(abc.ABC, Generic[RecipeT]):
     @abc.abstractmethod
     def list_ids(self) -> tuple[str, ...]:
         """Return the identifiers of all stored recipes."""
+
+
+class RetrievalIndex(abc.ABC):
+    """Seam for historical-defect vector retrieval (Milestone M19).
+
+    Implementations store embeddings alongside metadata and support
+    approximate/exact nearest-neighbor search. The index is not the source of
+    truth for business metadata (that remains the persistence layer) - it only
+    maps vectors to the metadata needed to identify a historical match.
+    """
+
+    @abc.abstractmethod
+    def add(self, embeddings: Embedding, metadata: Sequence[Mapping[str, Any]]) -> tuple[int, ...]:
+        """Add embeddings with associated metadata.
+
+        Args:
+            embeddings: A 2D array of shape ``(n, dim)``.
+            metadata: One mapping per embedding, same length as ``embeddings``.
+
+        Returns:
+            The vector IDs assigned to the added embeddings, in order.
+
+        Raises:
+            RetrievalError: On dimension mismatch, non-finite values, or a
+                length mismatch between ``embeddings`` and ``metadata``.
+        """
+
+    @abc.abstractmethod
+    def search(self, query: Embedding, top_k: int = 3) -> tuple[RetrievalMatch, ...]:
+        """Return the ``top_k`` nearest historical matches to ``query``.
+
+        Args:
+            query: A 1D embedding of shape ``(dim,)``.
+            top_k: Maximum number of matches to return.
+
+        Raises:
+            RetrievalError: On dimension mismatch or search failure.
+        """
+
+    @abc.abstractmethod
+    def save(self, path: Path) -> None:
+        """Persist the index and its metadata to ``path``.
+
+        Raises:
+            RetrievalError: On storage failure.
+        """
+
+    @abc.abstractmethod
+    def load(self, path: Path) -> None:
+        """Load a previously saved index and its metadata from ``path``.
+
+        Raises:
+            RetrievalError: If the index is missing, corrupt, or incompatible.
+        """
+
+
+class AdvisoryEngine(abc.ABC):
+    """Seam for local-LLM advisory root-cause explanation (Milestone M19).
+
+    Implementations MUST treat the deterministic severity carried on
+    :class:`InspectionEvidence` as authoritative and only explain it - never
+    override, upgrade, or downgrade it. Implementations must never raise for
+    an unavailable or misbehaving LLM: they fall back to a deterministic
+    report derived only from the supplied evidence.
+    """
+
+    @abc.abstractmethod
+    def generate_report(self, evidence: InspectionEvidence) -> AdvisoryReport:
+        """Produce a validated advisory report explaining ``evidence``."""
+
+
+class AdvisoryRepository(abc.ABC):
+    """Seam for persisting and querying advisory reports (Milestone M19)."""
+
+    @abc.abstractmethod
+    def save_report(
+        self,
+        inspection_id: str,
+        evidence: InspectionEvidence,
+        report: AdvisoryReport,
+    ) -> None:
+        """Persist an advisory report linked to ``inspection_id``.
+
+        Raises:
+            AdaptiveVisionError: On storage failure.
+        """
+
+    @abc.abstractmethod
+    def get_report(self, inspection_id: str) -> AdvisoryReport | None:
+        """Return the advisory report for ``inspection_id``, or ``None``."""

@@ -1,0 +1,9 @@
+{
+  "dataset": "severstal",
+  "category": null,
+  "height": 128,
+  "width": 800,
+  "backbone": "resnet18",
+  "pooled": true,
+  "test_auroc": 0.3724
+}

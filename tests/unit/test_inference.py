@@ -54,7 +54,9 @@ class _Runtime:
     def __init__(self) -> None:
         self.session: _Session | None = None
 
-    def InferenceSession(self, path: str, providers: list[str]) -> _Session:  # noqa: N802
+    def InferenceSession(  # noqa: N802
+        self, path: str, providers: list[str]
+    ) -> _Session:
         self.session = _Session(path, providers)
         return self.session
 
@@ -85,7 +87,9 @@ def test_onnx_engine_warmup_and_infer(tmp_path) -> None:
     engine.load(_model_file(tmp_path).name)
     engine.warmup()
     output = engine.infer({"input": np.array([[1.0, 2.0]], dtype=np.float32)})
-    np.testing.assert_array_equal(output["output"], np.array([[2.0, 3.0]], dtype=np.float32))
+    np.testing.assert_array_equal(
+        output["output"], np.array([[2.0, 3.0]], dtype=np.float32)
+    )
 
 
 def test_onnx_engine_rejects_missing_model(tmp_path) -> None:

@@ -116,7 +116,9 @@ def test_measurement_roundtrip_with_and_without_spec() -> None:
         tolerance=types.Tolerance(minus=0.1, plus=0.1),
         unit="mm",
     )
-    with_spec = types.Measurement(name="w", value=2.05, unit="mm", spec=spec, in_tolerance=True)
+    with_spec = types.Measurement(
+        name="w", value=2.05, unit="mm", spec=spec, in_tolerance=True
+    )
     without_spec = types.Measurement(name="raw", value=3.0, unit="px")
     assert types.Measurement.from_dict(with_spec.to_dict()) == with_spec
     assert types.Measurement.from_dict(without_spec.to_dict()) == without_spec

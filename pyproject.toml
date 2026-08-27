@@ -13,10 +13,18 @@ authors = [{ name = "AdaptiveVision Team" }]
 keywords = ["computer-vision", "aoi", "metrology", "edge-ai", "industrial"]
 # Runtime dependencies are added by the milestone that first needs them.
 # Milestone M4 introduces SQLAlchemy for the local edge persistence layer.
+# Milestone M13 introduces FastAPI for the minimal HTTP API.
+# Milestone M18 introduces uvicorn for the containerized edge API server.
+# Milestone M19 introduces pydantic to validate untrusted LLM advisory output
+# before it is converted to the domain's own frozen-dataclass value objects.
 dependencies = [
     "numpy>=1.26,<2",
     "sqlalchemy>=2.0,<3",
+    "fastapi>=0.110,<1",
+    "uvicorn>=0.29,<1",
+    "pydantic>=2.9,<3",
 ]
+
 
 [project.optional-dependencies]
 dev = [
@@ -27,7 +35,19 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "pre-commit>=3.7",
+    "httpx>=0.27,<1",
 ]
+# Milestone M19's optional AI services: historical-defect retrieval and local
+# LLM advisory. Both are lazily imported (see retrieval/faiss_index.py and
+# advisory/ollama_engine.py) and degrade gracefully when absent - this group
+# exists so they are discoverable and pinned, unlike onnxruntime (also
+# lazily imported, but left undeclared here since it is training-only; see
+# training/requirements.txt).
+intelligence = [
+    "faiss-cpu>=1.8,<2",
+    "ollama>=0.3,<1",
+]
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/adaptivevision"]
@@ -61,6 +81,10 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 # Tests and scaffold scripts need not carry full docstring/annotation rigor.
 "tests/*" = ["D", "ANN"]
+# Offline model-training scripts (torch/onnx), not part of the frozen src tree.
+"training/*" = ["D", "ANN"]
+# Embedded HTML/CSS/JS template and FastAPI's idiomatic File()/Form() defaults.
+"training/dashboard_app.py" = ["E501", "B008"]
 
 # ---------------------------------------------------------------------------
 # mypy: strict static typing on production code
@@ -71,7 +95,11 @@ strict = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+explicit_package_bases = true
+mypy_path = ["src", "scripts"]
 files = ["src", "scripts"]
+
+
 
 # ---------------------------------------------------------------------------
 # pytest + coverage

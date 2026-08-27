@@ -76,3 +76,15 @@ class FaultError(AdaptiveVisionError):
     """General station fault requiring intervention."""
 
     default_recoverable = False
+
+
+class RetrievalError(AdaptiveVisionError):
+    """Historical-defect vector retrieval failure (Milestone M19)."""
+
+    default_recoverable = True
+
+
+class AdvisoryError(AdaptiveVisionError):
+    """Local LLM advisory (root-cause explanation) failure (Milestone M19)."""
+
+    default_recoverable = True

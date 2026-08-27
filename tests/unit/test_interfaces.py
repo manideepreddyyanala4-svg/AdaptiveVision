@@ -121,7 +121,9 @@ class FakeRepository(interfaces.ResultRepository):
     def get_result(self, inspection_id: str) -> InspectionResult | None:
         return None
 
-    def list_results(self, *, limit: int = 100, offset: int = 0) -> tuple[InspectionResult, ...]:
+    def list_results(
+        self, *, limit: int = 100, offset: int = 0
+    ) -> tuple[InspectionResult, ...]:
         return ()
 
 

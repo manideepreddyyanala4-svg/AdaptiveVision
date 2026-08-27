@@ -57,7 +57,9 @@ def test_compose_matches_sequential_transform() -> None:
     point = (5.0, -2.0)
     composed = geometry.compose_pose(first, second)
     via_compose = geometry.transform_point(composed, point)
-    via_sequential = geometry.transform_point(second, geometry.transform_point(first, point))
+    via_sequential = geometry.transform_point(
+        second, geometry.transform_point(first, point)
+    )
     assert via_compose[0] == pytest.approx(via_sequential[0])
     assert via_compose[1] == pytest.approx(via_sequential[1])
 

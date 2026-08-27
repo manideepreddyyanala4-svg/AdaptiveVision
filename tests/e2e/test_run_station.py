@@ -30,7 +30,9 @@ def test_run_station_exits_cleanly_and_emits_boot_line() -> None:
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     payloads = [json.loads(line) for line in lines]
 
-    booted = next(p for p in payloads if p["message"] == "AdaptiveVision station booted")
+    booted = next(
+        p for p in payloads if p["message"] == "AdaptiveVision station booted"
+    )
     assert booted["level"] == "INFO"
     assert booted["correlation_id"].startswith("boot-")
     assert booted["state"] == "idle"
@@ -41,6 +43,8 @@ def test_run_station_exits_cleanly_and_emits_boot_line() -> None:
     assert inspection["part_id"] == "demo-part-001"
     assert inspection["verdict"] == "pass"
 
-    stopped = next(p for p in payloads if p["message"] == "AdaptiveVision station stopped")
+    stopped = next(
+        p for p in payloads if p["message"] == "AdaptiveVision station stopped"
+    )
     assert stopped["state"] == "shutdown"
     assert stopped["milestone"] == "M3"

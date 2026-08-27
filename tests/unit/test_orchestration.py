@@ -71,7 +71,9 @@ def test_state_machine_to_fault_noop_when_not_allowed() -> None:
 
 
 def _camera() -> NullCameraDriver:
-    driver = NullCameraDriver(CameraConfig("cam0", CameraKind.AREA_SCAN_2D, 640, 480, 30.0))
+    driver = NullCameraDriver(
+        CameraConfig("cam0", CameraKind.AREA_SCAN_2D, 640, 480, 30.0)
+    )
     driver.open()
     return driver
 
@@ -231,13 +233,17 @@ def test_new_inspection_id_unique() -> None:
 
 
 def test_scheduler_runs_cycles() -> None:
-    scheduler = InspectionScheduler(InspectionPipeline(_camera(), station_id="s", recipe_ver="1"))
+    scheduler = InspectionScheduler(
+        InspectionPipeline(_camera(), station_id="s", recipe_ver="1")
+    )
     results = scheduler.run_cycles(["p1", "p2", "p3"])
     assert [r.part_id for r in results] == ["p1", "p2", "p3"]
 
 
 def test_scheduler_invokes_callback() -> None:
-    scheduler = InspectionScheduler(InspectionPipeline(_camera(), station_id="s", recipe_ver="1"))
+    scheduler = InspectionScheduler(
+        InspectionPipeline(_camera(), station_id="s", recipe_ver="1")
+    )
     seen: list[str] = []
     scheduler.run_cycles(["p1", "p2"], on_result=lambda r: seen.append(r.part_id))
     assert seen == ["p1", "p2"]

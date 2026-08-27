@@ -56,13 +56,17 @@ def test_correlation_context_sets_and_restores(log_stream: io.StringIO) -> None:
         logger.info("inside")
     logger.info("outside")
 
-    payloads = [json.loads(raw) for raw in log_stream.getvalue().splitlines() if raw.strip()]
+    payloads = [
+        json.loads(raw) for raw in log_stream.getvalue().splitlines() if raw.strip()
+    ]
     assert payloads[-2]["correlation_id"] == "abc-123"
     assert payloads[-1]["correlation_id"] == logging_setup.DEFAULT_CORRELATION_ID
 
 
 def test_correlation_context_restores_on_exception(log_stream: io.StringIO) -> None:
-    with pytest.raises(ValueError, match="boom"), logging_setup.correlation_context("x-1"):
+    with pytest.raises(ValueError, match="boom"), logging_setup.correlation_context(
+        "x-1"
+    ):
         raise ValueError("boom")
     assert logging_setup.get_correlation_id() == logging_setup.DEFAULT_CORRELATION_ID
 
@@ -96,7 +100,9 @@ def test_configure_logging_is_idempotent() -> None:
     logging_setup.configure_logging()
     root = logging.getLogger()
     json_handlers = [
-        h for h in root.handlers if isinstance(h.formatter, logging_setup.JsonLogFormatter)
+        h
+        for h in root.handlers
+        if isinstance(h.formatter, logging_setup.JsonLogFormatter)
     ]
     assert len(json_handlers) == 1
 
@@ -107,7 +113,9 @@ def test_configure_logging_force_false_appends_handler() -> None:
     logging_setup.configure_logging(level="INFO", stream=stream, force=False)
     root = logging.getLogger()
     json_handlers = [
-        h for h in root.handlers if isinstance(h.formatter, logging_setup.JsonLogFormatter)
+        h
+        for h in root.handlers
+        if isinstance(h.formatter, logging_setup.JsonLogFormatter)
     ]
     assert len(json_handlers) == 2
 

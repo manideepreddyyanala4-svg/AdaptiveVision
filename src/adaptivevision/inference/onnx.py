@@ -70,7 +70,8 @@ class OnnxInferenceEngine(InferenceEngine):
         feed: dict[str, np.ndarray[Any, np.dtype[Any]]] = {}
         for input_meta in inputs:
             shape = tuple(
-                1 if not isinstance(dim, int) or dim <= 0 else dim for dim in input_meta.shape
+                1 if not isinstance(dim, int) or dim <= 0 else dim
+                for dim in input_meta.shape
             )
             feed[input_meta.name] = np.zeros(shape, dtype=_numpy_dtype(input_meta.type))
 

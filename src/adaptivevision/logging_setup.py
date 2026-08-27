@@ -99,7 +99,11 @@ def _extra_fields(record: logging.LogRecord) -> dict[str, Any]:
     Returns:
         A mapping of extra field name to value.
     """
-    return {key: value for key, value in record.__dict__.items() if key not in _STANDARD_ATTRIBUTES}
+    return {
+        key: value
+        for key, value in record.__dict__.items()
+        if key not in _STANDARD_ATTRIBUTES
+    }
 
 
 def get_logger(name: str) -> logging.Logger:

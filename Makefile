@@ -1,7 +1,10 @@
-.PHONY: install lint format format-check typecheck test run check
+.PHONY: install lint format format-check typecheck test run check train-deps
 
 install:
 	pip install -e ".[dev]"
+
+train-deps:
+	pip install -r training/requirements.txt
 
 lint:
 	ruff check .

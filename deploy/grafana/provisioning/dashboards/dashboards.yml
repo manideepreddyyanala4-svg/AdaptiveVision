@@ -1,0 +1,15 @@
+# AdaptiveVision Grafana dashboard provisioning (Milestone M18).
+#
+# Loads dashboards from the mounted dashboards directory on startup.
+
+apiVersion: 1
+
+providers:
+  - name: AdaptiveVision
+    orgId: 1
+    folder: AdaptiveVision
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

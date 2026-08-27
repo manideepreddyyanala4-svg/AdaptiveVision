@@ -20,7 +20,9 @@ def normalize_uint8(frame: RawFrame) -> RawFrame:
     if max_value == min_value:
         normalized = np.zeros_like(frame.image, dtype=np.uint8)
     else:
-        normalized = ((image - min_value) * (255.0 / (max_value - min_value))).astype(np.uint8)
+        normalized = ((image - min_value) * (255.0 / (max_value - min_value))).astype(
+            np.uint8
+        )
     return _replace_image(frame, normalized)
 
 
@@ -33,7 +35,9 @@ def ensure_grayscale(frame: RawFrame) -> RawFrame:
         msg = "Expected a grayscale, RGB, or RGBA image"
         raise ValueError(msg)
     rgb = image[:, :, :3].astype(np.float32)
-    gray = (0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]).astype(image.dtype)
+    gray = (0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]).astype(
+        image.dtype
+    )
     return _replace_image(frame, gray)
 
 

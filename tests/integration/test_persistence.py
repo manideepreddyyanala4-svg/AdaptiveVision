@@ -15,7 +15,12 @@ import pytest
 
 from adaptivevision.common.enums import DefectClass, Severity, Verdict
 from adaptivevision.common.errors import AdaptiveVisionError
-from adaptivevision.common.result import Defect, InspectionResult
+from adaptivevision.common.result import (
+    AdvisoryReport,
+    Defect,
+    InspectionEvidence,
+    InspectionResult,
+)
 from adaptivevision.common.types import ROI, Measurement
 from adaptivevision.persistence.database import (
     build_engine,
@@ -30,7 +35,10 @@ from adaptivevision.persistence.integration import (
     make_persistence_handler,
 )
 from adaptivevision.persistence.models_orm import InspectionRecord
-from adaptivevision.persistence.repositories import SqliteResultRepository
+from adaptivevision.persistence.repositories import (
+    SqliteAdvisoryRepository,
+    SqliteResultRepository,
+)
 from adaptivevision.persistence.traceability import (
     build_traceability_record,
     serialize_traceability,
@@ -83,6 +91,32 @@ def session_factory():
 def repository(session_factory) -> SqliteResultRepository:
     """Provide a repository bound to an in-memory database."""
     return SqliteResultRepository(session_factory)
+
+
+@pytest.fixture()
+def advisory_repository(session_factory) -> SqliteAdvisoryRepository:
+    """Provide an advisory repository bound to an in-memory database."""
+    return SqliteAdvisoryRepository(session_factory)
+
+
+def _evidence(sample_id: str = "insp-1") -> InspectionEvidence:
+    return InspectionEvidence(
+        sample_id=sample_id,
+        category="bottle",
+        anomaly_score=0.9,
+        severity=Severity.MAJOR,
+        model_ver="patchcore-v1",
+    )
+
+
+def _report(*, severity: Severity = Severity.MAJOR) -> AdvisoryReport:
+    return AdvisoryReport(
+        defect_classification="crack",
+        severity=severity,
+        confidence_score=0.7,
+        root_cause_hypothesis="Likely mold defect.",
+        recommended_actions=("inspect mold",),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +248,18 @@ def test_repository_save_duplicate_inspection_id_raises(
         repository.save_result(_result())
 
 
+def test_repository_get_wraps_storage_failure() -> None:
+    repository = SqliteResultRepository(_broken_session_factory())
+    with pytest.raises(AdaptiveVisionError):
+        repository.get_result("insp-1")
+
+
+def test_repository_list_wraps_storage_failure() -> None:
+    repository = SqliteResultRepository(_broken_session_factory())
+    with pytest.raises(AdaptiveVisionError):
+        repository.list_results()
+
+
 # ---------------------------------------------------------------------------
 # Traceability
 # ---------------------------------------------------------------------------
@@ -302,3 +348,76 @@ def test_persistence_handler_swallows_failures(
     handler = PersistenceHandler(repository)
     handler.on_result(_result())
     handler.on_result(_result())  # duplicate -> failure, must not raise
+
+
+# ---------------------------------------------------------------------------
+# Advisory repository (Milestone M19)
+# ---------------------------------------------------------------------------
+
+
+def test_advisory_repository_save_and_get_roundtrip(
+    advisory_repository: SqliteAdvisoryRepository,
+) -> None:
+    report = _report()
+    advisory_repository.save_report("insp-1", _evidence(), report)
+    restored = advisory_repository.get_report("insp-1")
+    assert restored == report
+
+
+def test_advisory_repository_get_missing_returns_none(
+    advisory_repository: SqliteAdvisoryRepository,
+) -> None:
+    assert advisory_repository.get_report("does-not-exist") is None
+
+
+def test_advisory_repository_save_overwrites_existing_report(
+    advisory_repository: SqliteAdvisoryRepository,
+) -> None:
+    advisory_repository.save_report("insp-1", _evidence(), _report(severity=Severity.MAJOR))
+    advisory_repository.save_report("insp-1", _evidence(), _report(severity=Severity.CRITICAL))
+    restored = advisory_repository.get_report("insp-1")
+    assert restored is not None
+    assert restored.severity == Severity.CRITICAL
+
+
+def test_advisory_repository_is_independent_of_result_repository(
+    repository: SqliteResultRepository,
+    advisory_repository: SqliteAdvisoryRepository,
+) -> None:
+    repository.save_result(_result())
+    advisory_repository.save_report("insp-1", _evidence(), _report())
+    assert repository.get_result("insp-1") is not None
+    assert advisory_repository.get_report("insp-1") is not None
+
+
+def _broken_session_factory():
+    """A session factory that fails before yielding a session."""
+
+    def _raise():
+        msg = "simulated database failure"
+        raise RuntimeError(msg)
+
+    return _raise
+
+
+def test_advisory_repository_save_wraps_storage_failure() -> None:
+    repository = SqliteAdvisoryRepository(_broken_session_factory())
+    with pytest.raises(AdaptiveVisionError):
+        repository.save_report("insp-1", _evidence(), _report())
+
+
+def test_advisory_repository_get_wraps_storage_failure() -> None:
+    repository = SqliteAdvisoryRepository(_broken_session_factory())
+    with pytest.raises(AdaptiveVisionError):
+        repository.get_report("insp-1")
+
+
+def test_as_utc_leaves_timezone_aware_timestamp_unchanged() -> None:
+    from datetime import timedelta, timezone
+
+    from adaptivevision.persistence.repositories import _as_utc
+
+    aware = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone(timedelta(hours=5)))
+    result = _as_utc(aware)
+    assert result.tzinfo == UTC
+    assert result == aware

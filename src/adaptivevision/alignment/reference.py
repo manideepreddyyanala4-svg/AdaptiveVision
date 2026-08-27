@@ -40,7 +40,10 @@ class ReferenceAligner:
             )
             raise FaultError(msg)
         height, width = frame.image.shape[:2]
-        if width != self._reference.image_width or height != self._reference.image_height:
+        if (
+            width != self._reference.image_width
+            or height != self._reference.image_height
+        ):
             msg = (
                 f"Frame dimensions {width}x{height} do not match reference "
                 f"{self._reference.image_width}x{self._reference.image_height}"

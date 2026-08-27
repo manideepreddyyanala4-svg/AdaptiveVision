@@ -232,3 +232,158 @@ class InspectionResult:
             anomaly_score=data.get("anomaly_score"),
             image_refs=tuple(data.get("image_refs", ())),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class RetrievalMatch:
+    """A single historical-defect match returned by a retrieval index (Milestone M19).
+
+    Attributes:
+        vector_id: Identifier of the matched vector within its index.
+        distance: Raw metric-space distance or similarity score (metric-specific;
+            not normalized across index types).
+        dataset: Name of the dataset the match was sourced from.
+        category: Product/part category of the match.
+        defect_type: Defect type label of the match.
+        image_path: Optional path or reference to the matched image.
+        metadata: Additional index-specific metadata, JSON-serializable.
+    """
+
+    vector_id: int
+    distance: float
+    dataset: str
+    category: str
+    defect_type: str
+    image_path: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-friendly dictionary."""
+        return {
+            "vector_id": self.vector_id,
+            "distance": self.distance,
+            "dataset": self.dataset,
+            "category": self.category,
+            "defect_type": self.defect_type,
+            "image_path": self.image_path,
+            "metadata": dict(self.metadata),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Deserialize from a dictionary produced by :meth:`to_dict`."""
+        return cls(
+            vector_id=data["vector_id"],
+            distance=data["distance"],
+            dataset=data["dataset"],
+            category=data["category"],
+            defect_type=data["defect_type"],
+            image_path=data.get("image_path"),
+            metadata=dict(data.get("metadata", {})),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class InspectionEvidence:
+    """Deterministic evidence gathered for one inspection (Milestone M19).
+
+    This is the *only* input the advisory layer
+    (:class:`~adaptivevision.common.interfaces.AdvisoryEngine`) may use to
+    produce an explanation. ``severity`` is read from the inspection's own
+    :class:`Defect` records (via the decision policy) and is never computed
+    or overridden by the advisory layer.
+
+    Attributes:
+        sample_id: Identifier of the inspected sample (``inspection_id``).
+        category: Product/part category being inspected.
+        anomaly_score: Overall anomaly score, if computed.
+        severity: Deterministic severity established by the decision policy.
+        model_ver: Version of the anomaly model that produced the score.
+        retrieval_matches: Historical matches retrieved for this sample.
+    """
+
+    sample_id: str
+    category: str
+    anomaly_score: float | None
+    severity: Severity
+    model_ver: str
+    retrieval_matches: tuple[RetrievalMatch, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-friendly dictionary."""
+        return {
+            "sample_id": self.sample_id,
+            "category": self.category,
+            "anomaly_score": self.anomaly_score,
+            "severity": self.severity.value,
+            "model_ver": self.model_ver,
+            "retrieval_matches": [m.to_dict() for m in self.retrieval_matches],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Deserialize from a dictionary produced by :meth:`to_dict`."""
+        return cls(
+            sample_id=data["sample_id"],
+            category=data["category"],
+            anomaly_score=data.get("anomaly_score"),
+            severity=Severity(data["severity"]),
+            model_ver=data["model_ver"],
+            retrieval_matches=tuple(
+                RetrievalMatch.from_dict(m) for m in data.get("retrieval_matches", ())
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class AdvisoryReport:
+    """A validated advisory (root-cause explanation) report (Milestone M19).
+
+    ``severity`` is always echoed unchanged from the :class:`InspectionEvidence`
+    that produced this report; the advisory layer explains the deterministic
+    result, it never sets or overrides it.
+
+    Attributes:
+        defect_classification: The advisory layer's descriptive classification.
+        severity: Deterministic severity, echoed from the evidence.
+        confidence_score: Confidence in the hypothesis, in ``[0, 1]``.
+        root_cause_hypothesis: Explanatory hypothesis (not a fact).
+        recommended_actions: Suggested next steps.
+        is_fallback: ``True`` if produced without a live LLM call.
+    """
+
+    defect_classification: str
+    severity: Severity
+    confidence_score: float
+    root_cause_hypothesis: str
+    recommended_actions: tuple[str, ...] = ()
+    is_fallback: bool = False
+
+    def __post_init__(self) -> None:
+        """Validate that ``confidence_score`` lies in ``[0, 1]``."""
+        if not 0.0 <= self.confidence_score <= 1.0:
+            msg = "AdvisoryReport.confidence_score must be in [0, 1]"
+            raise ValueError(msg)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-friendly dictionary."""
+        return {
+            "defect_classification": self.defect_classification,
+            "severity": self.severity.value,
+            "confidence_score": self.confidence_score,
+            "root_cause_hypothesis": self.root_cause_hypothesis,
+            "recommended_actions": list(self.recommended_actions),
+            "is_fallback": self.is_fallback,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Deserialize from a dictionary produced by :meth:`to_dict`."""
+        return cls(
+            defect_classification=data["defect_classification"],
+            severity=Severity(data["severity"]),
+            confidence_score=data["confidence_score"],
+            root_cause_hypothesis=data["root_cause_hypothesis"],
+            recommended_actions=tuple(data.get("recommended_actions", ())),
+            is_fallback=data.get("is_fallback", False),
+        )

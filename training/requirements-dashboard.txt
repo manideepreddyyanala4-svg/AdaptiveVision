@@ -1,0 +1,11 @@
+# Dependencies for the research/benchmark Streamlit dashboard
+# (dashboard/app.py, run at the repo root - NOT training/dashboard_app.py,
+# which is a standalone FastAPI app with no extra dependencies).
+#
+# Documented here at Milestone M19: these were imported by dashboard/app.py
+# but never declared anywhere before this file existed (a pre-existing gap,
+# not introduced by M19). Install with:
+#   pip install -r training/requirements-dashboard.txt
+streamlit>=1.38
+plotly>=5.24
+streamlit-autorefresh>=1.0

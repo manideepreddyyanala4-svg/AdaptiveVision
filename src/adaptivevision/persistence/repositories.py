@@ -1,4 +1,4 @@
-"""Persistence repositories (Milestone M4).
+"""Persistence repositories (Milestone M4; M19 adds advisory reports).
 
 This module implements the existing
 :class:`~adaptivevision.common.interfaces.ResultRepository` seam against the
@@ -20,10 +20,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from adaptivevision.common.enums import Verdict
 from adaptivevision.common.errors import AdaptiveVisionError
-from adaptivevision.common.interfaces import ResultRepository
-from adaptivevision.common.result import Defect, InspectionResult
+from adaptivevision.common.interfaces import AdvisoryRepository, ResultRepository
+from adaptivevision.common.result import (
+    AdvisoryReport,
+    Defect,
+    InspectionEvidence,
+    InspectionResult,
+)
 from adaptivevision.common.types import Measurement
-from adaptivevision.persistence.models_orm import InspectionRecord
+from adaptivevision.persistence.models_orm import AdvisoryRecord, InspectionRecord
 from adaptivevision.persistence.traceability import serialize_traceability
 
 
@@ -146,3 +151,58 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+class SqliteAdvisoryRepository(AdvisoryRepository):
+    """An :class:`AdvisoryRepository` backed by the local SQLite database.
+
+    Args:
+        session_factory: The session factory to use for database access.
+    """
+
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        """Initialize the repository."""
+        self._session_factory = session_factory
+
+    def save_report(
+        self,
+        inspection_id: str,
+        evidence: InspectionEvidence,
+        report: AdvisoryReport,
+    ) -> None:
+        """Persist an advisory report linked to ``inspection_id``.
+
+        Raises:
+            AdaptiveVisionError: On storage failure.
+        """
+        record = AdvisoryRecord(
+            inspection_id=inspection_id,
+            evidence_json=evidence.to_dict(),
+            report_json=report.to_dict(),
+            created_at=datetime.now(UTC),
+        )
+        try:
+            with self._session_factory() as session:
+                existing = session.scalar(
+                    select(AdvisoryRecord).where(AdvisoryRecord.inspection_id == inspection_id)
+                )
+                if existing is not None:
+                    session.delete(existing)
+                    session.flush()
+                session.add(record)
+                session.commit()
+        except Exception as exc:
+            msg = f"Failed to persist advisory report for {inspection_id!r}: {exc}"
+            raise AdaptiveVisionError(msg) from exc
+
+    def get_report(self, inspection_id: str) -> AdvisoryReport | None:
+        """Return the advisory report for ``inspection_id``, or ``None`` if absent."""
+        try:
+            with self._session_factory() as session:
+                record = session.scalar(
+                    select(AdvisoryRecord).where(AdvisoryRecord.inspection_id == inspection_id)
+                )
+        except Exception as exc:
+            msg = f"Failed to query advisory report for {inspection_id!r}: {exc}"
+            raise AdaptiveVisionError(msg) from exc
+        return AdvisoryReport.from_dict(record.report_json) if record is not None else None

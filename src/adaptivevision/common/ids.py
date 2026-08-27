@@ -20,7 +20,9 @@ _MS_WIDTH = 13
 _RAND_HEX = 8
 
 
-def _generate(prefix: str, *, now_ns: int | None = None, rand_hex: str | None = None) -> str:
+def _generate(
+    prefix: str, *, now_ns: int | None = None, rand_hex: str | None = None
+) -> str:
     """Build a time-ordered identifier.
 
     Args:

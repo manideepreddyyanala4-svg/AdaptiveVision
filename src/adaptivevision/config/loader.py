@@ -30,7 +30,9 @@ _ENV_PREFIX = "ADAPTIVEVISION_"
 _DEFAULT_STATION_ID = "station-01"
 
 
-def load_env_file(path: Path, *, environ: Mapping[str, str] | None = None) -> dict[str, str]:
+def load_env_file(
+    path: Path, *, environ: Mapping[str, str] | None = None
+) -> dict[str, str]:
     """Parse a ``KEY=VALUE`` ``.env`` file into a dictionary.
 
     Existing environment variables take precedence: a key already present in

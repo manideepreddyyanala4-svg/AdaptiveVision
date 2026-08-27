@@ -38,7 +38,10 @@ class CalibrationRectifier:
             )
             raise CalibrationError(msg)
         height, width = frame.image.shape[:2]
-        if width != self._calibration.image_width or height != self._calibration.image_height:
+        if (
+            width != self._calibration.image_width
+            or height != self._calibration.image_height
+        ):
             msg = (
                 f"Frame dimensions {width}x{height} do not match calibration "
                 f"{self._calibration.image_width}x{self._calibration.image_height}"
