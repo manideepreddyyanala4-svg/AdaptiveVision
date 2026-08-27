@@ -20,9 +20,7 @@ def normalize_uint8(frame: RawFrame) -> RawFrame:
     if max_value == min_value:
         normalized = np.zeros_like(frame.image, dtype=np.uint8)
     else:
-        normalized = ((image - min_value) * (255.0 / (max_value - min_value))).astype(
-            np.uint8
-        )
+        normalized = ((image - min_value) * (255.0 / (max_value - min_value))).astype(np.uint8)
     return _replace_image(frame, normalized)
 
 
@@ -35,10 +33,34 @@ def ensure_grayscale(frame: RawFrame) -> RawFrame:
         msg = "Expected a grayscale, RGB, or RGBA image"
         raise ValueError(msg)
     rgb = image[:, :, :3].astype(np.float32)
-    gray = (0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]).astype(
-        image.dtype
-    )
+    gray = (0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]).astype(image.dtype)
     return _replace_image(frame, gray)
+
+
+def resize_to(height: int, width: int) -> PreprocessStep:
+    """Build a step that resizes a frame to a model's fixed ``(height, width)``.
+
+    Uses nearest-neighbor sampling -- adequate for matching an inference
+    contract, and dependency-free like the rest of this module (no OpenCV in
+    the production package; that stays a training-only dependency).
+
+    Args:
+        height: Target height in pixels.
+        width: Target width in pixels.
+
+    Returns:
+        A preprocessing step producing a ``(height, width[, channels])`` image.
+    """
+
+    def _resize(frame: RawFrame) -> RawFrame:
+        image = frame.image
+        src_height, src_width = image.shape[0], image.shape[1]
+        row_idx = (np.arange(height) * src_height / height).astype(np.intp)
+        col_idx = (np.arange(width) * src_width / width).astype(np.intp)
+        resized = image[row_idx][:, col_idx]
+        return _replace_image(frame, resized)
+
+    return _resize
 
 
 class PreprocessingPipeline:

@@ -19,9 +19,18 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir .
+COPY scripts ./scripts
 
 # The API is served by uvicorn; expose the default port.
 EXPOSE 8000
 
 # Default command: serve the AdaptiveVision API on all interfaces.
-CMD ["uvicorn", "adaptivevision.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+#
+# Deliberately NOT `uvicorn adaptivevision.api:create_app --factory`: that
+# calls the raw factory with zero arguments, but create_app()'s `repository`
+# parameter has no default, so the container crashed at startup every time
+# (docs/milestones/M20.md). scripts/run_api.py is the one place that actually
+# builds the repository/advisory/deployment-profiles composition create_app()
+# needs, exactly like scripts/run_station.py is the real entry point for the
+# station rather than calling app.app.build_station() directly.
+CMD ["python", "scripts/run_api.py", "--host", "0.0.0.0", "--port", "8000"]

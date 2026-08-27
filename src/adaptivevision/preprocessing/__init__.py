@@ -5,6 +5,7 @@ from adaptivevision.preprocessing.operators import (
     PreprocessStep,
     ensure_grayscale,
     normalize_uint8,
+    resize_to,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "PreprocessingPipeline",
     "ensure_grayscale",
     "normalize_uint8",
+    "resize_to",
 ]

@@ -84,15 +84,15 @@ def test_station_config_is_frozen() -> None:
         config.station_id = "other"  # type: ignore[misc]
 
 
-def test_load_config_defaults() -> None:
-    config = load_config(environ={})
+def test_load_config_defaults(tmp_path: Path) -> None:
+    config = load_config(environ={}, env_file=tmp_path / "none.env")
     assert config.station_id == "station-01"
     assert config.log_level == "INFO"
     assert config.cameras == {}
     assert config.execution_provider is ExecutionProvider.CPU
 
 
-def test_load_config_reads_environment() -> None:
+def test_load_config_reads_environment(tmp_path: Path) -> None:
     env = {
         "ADAPTIVEVISION_STATION_ID": "station-9",
         "ADAPTIVEVISION_LOG_LEVEL": "DEBUG",
@@ -100,7 +100,7 @@ def test_load_config_reads_environment() -> None:
         "ADAPTIVEVISION_EXECUTION_PROVIDER": "openvino",
         "ADAPTIVEVISION_CYCLE_TIMEOUT_MS": "2500.0",
     }
-    config = load_config(environ=env)
+    config = load_config(environ=env, env_file=tmp_path / "none.env")
     assert config.station_id == "station-9"
     assert config.log_level == "DEBUG"
     assert config.default_recipe_id == "widget-a"
@@ -108,7 +108,7 @@ def test_load_config_reads_environment() -> None:
     assert config.cycle_timeout_ms == 2500.0
 
 
-def test_load_config_parses_cameras() -> None:
+def test_load_config_parses_cameras(tmp_path: Path) -> None:
     env = {
         "ADAPTIVEVISION_CAMERA_IDS": "cam0,cam1",
         "ADAPTIVEVISION_CAMERA_CAM0_KIND": "area_scan_2d",
@@ -118,7 +118,7 @@ def test_load_config_parses_cameras() -> None:
         "ADAPTIVEVISION_CAMERA_CAM0_DEVICE": "0",
         "ADAPTIVEVISION_CAMERA_CAM1_KIND": "line_scan_2d",
     }
-    config = load_config(environ=env)
+    config = load_config(environ=env, env_file=tmp_path / "none.env")
     assert set(config.cameras) == {"cam0", "cam1"}
     cam0 = config.cameras["cam0"]
     assert cam0.kind is CameraKind.AREA_SCAN_2D
@@ -129,20 +129,26 @@ def test_load_config_parses_cameras() -> None:
     assert config.cameras["cam1"].kind is CameraKind.LINE_SCAN_2D
 
 
-def test_load_config_preserves_unknown_vars_in_extra() -> None:
+def test_load_config_preserves_unknown_vars_in_extra(tmp_path: Path) -> None:
     env = {"ADAPTIVEVISION_FUTURE_SETTING": "hello"}
-    config = load_config(environ=env)
+    config = load_config(environ=env, env_file=tmp_path / "none.env")
     assert config.extra == {"FUTURE_SETTING": "hello"}
 
 
-def test_load_config_rejects_invalid_provider() -> None:
+def test_load_config_rejects_invalid_provider(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
-        load_config(environ={"ADAPTIVEVISION_EXECUTION_PROVIDER": "bogus"})
+        load_config(
+            environ={"ADAPTIVEVISION_EXECUTION_PROVIDER": "bogus"},
+            env_file=tmp_path / "none.env",
+        )
 
 
-def test_load_config_rejects_invalid_number() -> None:
+def test_load_config_rejects_invalid_number(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="CYCLE_TIMEOUT_MS"):
-        load_config(environ={"ADAPTIVEVISION_CYCLE_TIMEOUT_MS": "abc"})
+        load_config(
+            environ={"ADAPTIVEVISION_CYCLE_TIMEOUT_MS": "abc"},
+            env_file=tmp_path / "none.env",
+        )
 
 
 def test_load_env_file_parses_and_respects_precedence(tmp_path: Path) -> None:
@@ -172,3 +178,28 @@ def test_load_config_merges_env_file(tmp_path: Path) -> None:
     env_file.write_text("ADAPTIVEVISION_STATION_ID=from-file\n", encoding="utf-8")
     config = load_config(environ={}, env_file=env_file)
     assert config.station_id == "from-file"
+
+
+def test_load_config_defaults_to_dot_env_in_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``env_file`` omitted entirely -- must still read ``.env`` from cwd.
+
+    Regression test: this previously silently did nothing (``env_file`` stayed
+    ``None`` and was never defaulted), so a committed ``.env.example`` copied
+    to ``.env`` per its own instructions was never actually read by any
+    caller that didn't pass ``env_file=`` explicitly, despite the docstring's
+    documented contract.
+    """
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("ADAPTIVEVISION_STATION_ID=from-cwd-dotenv\n", encoding="utf-8")
+    config = load_config(environ={})
+    assert config.station_id == "from-cwd-dotenv"
+
+
+def test_load_config_tolerates_missing_dot_env_in_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = load_config(environ={})
+    assert config.station_id == "station-01"

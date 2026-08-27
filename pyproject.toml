@@ -36,13 +36,23 @@ dev = [
     "pytest-cov>=5.0",
     "pre-commit>=3.7",
     "httpx>=0.27,<1",
+    # Only for tests/e2e/test_real_inspection.py's real-image fixtures -- the
+    # production code path never touches an image codec (see inference/).
+    "opencv-python-headless>=4.9,<5",
+]
+# Milestone M9/M10 wiring (docs/milestones/M20.md): onnxruntime backs the
+# anomaly detector once app.app.build_anomaly_detector() has a MODEL_PATH
+# configured. Still lazily imported (see inference/onnx.py's
+# _import_onnxruntime()) and gracefully degraded when absent -- an edge
+# deployment with no model configured never needs it -- but it is no longer
+# training-only, so it is declared like everything else lazily imported.
+inference = [
+    "onnxruntime>=1.18,<2",
 ]
 # Milestone M19's optional AI services: historical-defect retrieval and local
 # LLM advisory. Both are lazily imported (see retrieval/faiss_index.py and
 # advisory/ollama_engine.py) and degrade gracefully when absent - this group
-# exists so they are discoverable and pinned, unlike onnxruntime (also
-# lazily imported, but left undeclared here since it is training-only; see
-# training/requirements.txt).
+# exists so they are discoverable and pinned.
 intelligence = [
     "faiss-cpu>=1.8,<2",
     "ollama>=0.3,<1",

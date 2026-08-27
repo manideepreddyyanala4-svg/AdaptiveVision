@@ -30,9 +30,7 @@ _ENV_PREFIX = "ADAPTIVEVISION_"
 _DEFAULT_STATION_ID = "station-01"
 
 
-def load_env_file(
-    path: Path, *, environ: Mapping[str, str] | None = None
-) -> dict[str, str]:
+def load_env_file(path: Path, *, environ: Mapping[str, str] | None = None) -> dict[str, str]:
     """Parse a ``KEY=VALUE`` ``.env`` file into a dictionary.
 
     Existing environment variables take precedence: a key already present in
@@ -87,8 +85,8 @@ def load_config(
     """
     env = os.environ if environ is None else environ
     merged: dict[str, str] = dict(env)
-    if env_file is not None:
-        merged.update(load_env_file(env_file, environ=env))
+    resolved_env_file = Path(".env") if env_file is None else env_file
+    merged.update(load_env_file(resolved_env_file, environ=env))
 
     station_id = merged.get(f"{_ENV_PREFIX}STATION_ID", _DEFAULT_STATION_ID)
     log_level = merged.get(f"{_ENV_PREFIX}LOG_LEVEL", "INFO")

@@ -87,6 +87,10 @@ class ThresholdAnomalyDetector(AnomalyDetector):
         score_extractor: Optional callable that maps the inference output to a
             scalar score. Defaults to reading ``output_name`` and taking the
             first element.
+        anomalous_severity: Severity assigned to the defect raised for an
+            anomalous frame. A recipe's ``review_on_anomaly`` flag maps to
+            ``Severity.MINOR`` here (the M10 decision policy routes MINOR to
+            REVIEW); the default ``Severity.MAJOR`` routes straight to FAIL.
     """
 
     def __init__(
@@ -97,6 +101,7 @@ class ThresholdAnomalyDetector(AnomalyDetector):
         input_name: str = "input",
         output_name: str = "output",
         score_extractor: ScoreExtractor | None = None,
+        anomalous_severity: Severity = Severity.MAJOR,
     ) -> None:
         """Initialize the detector."""
         self._engine = engine
@@ -104,6 +109,7 @@ class ThresholdAnomalyDetector(AnomalyDetector):
         self._input_name = input_name
         self._output_name = output_name
         self._score_extractor = score_extractor or self._default_score
+        self._anomalous_severity = anomalous_severity
 
     def detect(self, frame: RectifiedFrame, roi: ROI | None = None) -> AnomalyResult:
         """Score the frame and apply the decision threshold.
@@ -119,9 +125,14 @@ class ThresholdAnomalyDetector(AnomalyDetector):
             InferenceError: If inference fails.
         """
         _ = roi
-        image = frame.image
+        image = frame.image.astype(np.float32, copy=False)
         if image.ndim == 2:
+            # Grayscale (H, W) -> (1, H, W): a 1-channel model input.
             image = image[np.newaxis, ...]
+        elif image.ndim == 3:
+            # Color (H, W, C) -> (C, H, W): the channel-first layout ONNX
+            # vision models expect.
+            image = image.transpose(2, 0, 1)
         outputs = self._engine.infer({self._input_name: image})
         score = self._score_extractor(outputs)
         is_anomalous = score >= self._threshold
@@ -130,7 +141,7 @@ class ThresholdAnomalyDetector(AnomalyDetector):
             defects = (
                 Defect(
                     defect_class=DefectClass.ANOMALY,
-                    severity=Severity.MAJOR,
+                    severity=self._anomalous_severity,
                     score=score,
                     description="Anomaly score exceeded threshold",
                 ),
