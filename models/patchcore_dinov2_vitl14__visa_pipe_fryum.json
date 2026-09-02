@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitl14",
+  "family": "patchcore",
+  "dataset": "visa",
+  "category": "pipe_fryum",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 41.88486099243164,
+  "calibration_sigma": 2.8373091220855713,
+  "n_fit_images": 383,
+  "n_calibration_images": 67,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-09-01T04:05:10.333339+00:00",
+  "test_auroc": 0.9188000000000001
+}

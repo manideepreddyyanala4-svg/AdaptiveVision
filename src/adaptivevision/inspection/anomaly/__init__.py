@@ -9,5 +9,20 @@ from adaptivevision.inspection.anomaly.detector import (
     StaticAnomalyDetector,
     ThresholdAnomalyDetector,
 )
+from adaptivevision.inspection.anomaly.metrology import (
+    PARTICLE,
+    SCRATCH,
+    MetrologyConfig,
+    measure_defects,
+    otsu_threshold,
+)
 
-__all__ = ["StaticAnomalyDetector", "ThresholdAnomalyDetector"]
+__all__ = [
+    "PARTICLE",
+    "SCRATCH",
+    "MetrologyConfig",
+    "StaticAnomalyDetector",
+    "ThresholdAnomalyDetector",
+    "measure_defects",
+    "otsu_threshold",
+]

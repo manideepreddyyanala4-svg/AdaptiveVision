@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "leather",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 36.23006057739258,
+  "calibration_sigma": 5.365327835083008,
+  "n_fit_images": 209,
+  "n_calibration_images": 36,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T14:15:53.539728+00:00",
+  "test_auroc": 0.9998867753623188
+}

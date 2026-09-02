@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "visa",
+  "category": "macaroni2",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 45.16091537475586,
+  "calibration_sigma": 2.0416784286499023,
+  "n_fit_images": 765,
+  "n_calibration_images": 135,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-09-01T04:03:54.245316+00:00",
+  "test_auroc": 0.6008333333333334
+}

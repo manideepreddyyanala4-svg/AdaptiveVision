@@ -23,10 +23,6 @@ Each stage is skippable and each is independently resumable, so a run that
 dies partway picks up where it stopped rather than starting over. Stages 2-6
 are cheap and always re-run from whatever the sweep has produced so far.
 
-The live view of progress while this runs is a separately-launched Streamlit
-app, not a stage here (it's a long-running server, not a batch step):
-    streamlit run dashboard/app.py
-
 Usage:
     python training/benchmark/run_all.py
     python training/benchmark/run_all.py --quick
@@ -303,7 +299,6 @@ def main() -> None:
     print(f"finished {len(completed)} stages in {total:.1f} min")
     print(f"  report:     {results_dir / 'leaderboard.md'}")
     print(f"  results db: {results_db}")
-    print(f"  live view:  streamlit run dashboard/app.py")
     print("=" * 72)
 
 

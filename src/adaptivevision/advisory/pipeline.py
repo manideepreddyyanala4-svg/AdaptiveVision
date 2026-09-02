@@ -40,6 +40,7 @@ def build_evidence(
     model_ver: str,
     decision: Decision,
     retrieval_matches: tuple[RetrievalMatch, ...] = (),
+    heatmap_region: str | None = None,
 ) -> InspectionEvidence:
     """Build read-only advisory evidence from an already-final ``decision``.
 
@@ -50,6 +51,8 @@ def build_evidence(
         model_ver: Version of the anomaly model that produced the score.
         decision: The final, already-computed decision. Never recomputed.
         retrieval_matches: Historical matches retrieved for this sample.
+        heatmap_region: Coarse location of the strongest per-patch anomaly
+            signal, if a localization heatmap was computed.
 
     Returns:
         Evidence carrying the decision's own severity, unchanged.
@@ -61,6 +64,7 @@ def build_evidence(
         severity=_max_severity(decision.defects),
         model_ver=model_ver,
         retrieval_matches=retrieval_matches,
+        heatmap_region=heatmap_region,
     )
 
 

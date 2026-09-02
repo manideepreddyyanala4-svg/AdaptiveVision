@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "tile",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 42.171722412109375,
+  "calibration_sigma": 4.877730369567871,
+  "n_fit_images": 196,
+  "n_calibration_images": 34,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T11:37:43.250913+00:00",
+  "test_auroc": 0.9989177489177489
+}

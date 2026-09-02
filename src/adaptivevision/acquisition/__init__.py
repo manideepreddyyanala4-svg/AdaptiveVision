@@ -14,9 +14,11 @@ from __future__ import annotations
 
 from adaptivevision.acquisition.camera import NullCameraDriver
 from adaptivevision.acquisition.frame import build_frame, new_frame_id
+from adaptivevision.acquisition.threaded import ThreadedFrameBuffer
 
 __all__ = [
     "NullCameraDriver",
+    "ThreadedFrameBuffer",
     "build_frame",
     "new_frame_id",
 ]

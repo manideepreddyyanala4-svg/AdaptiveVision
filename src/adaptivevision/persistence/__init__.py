@@ -23,7 +23,9 @@ from adaptivevision.persistence.image_store import ImageStoreError, LocalImageSt
 from adaptivevision.persistence.models_orm import Base, InspectionRecord
 from adaptivevision.persistence.repositories import SqliteResultRepository
 from adaptivevision.persistence.traceability import (
+    build_mes_payload,
     build_traceability_record,
+    serialize_mes_payload,
     serialize_traceability,
 )
 
@@ -34,10 +36,12 @@ __all__ = [
     "LocalImageStore",
     "SqliteResultRepository",
     "build_engine",
+    "build_mes_payload",
     "build_traceability_record",
     "init_db",
     "make_session_factory",
     "open_database",
+    "serialize_mes_payload",
     "serialize_traceability",
     "session_scope",
 ]

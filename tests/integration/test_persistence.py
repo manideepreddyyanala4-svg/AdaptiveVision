@@ -18,6 +18,7 @@ from adaptivevision.common.errors import AdaptiveVisionError
 from adaptivevision.common.result import (
     AdvisoryReport,
     Defect,
+    DefectMeasurement,
     InspectionEvidence,
     InspectionResult,
 )
@@ -40,7 +41,9 @@ from adaptivevision.persistence.repositories import (
     SqliteResultRepository,
 )
 from adaptivevision.persistence.traceability import (
+    build_mes_payload,
     build_traceability_record,
+    serialize_mes_payload,
     serialize_traceability,
 )
 
@@ -50,6 +53,8 @@ def _result(
     part_id: str = "part-1",
     verdict: Verdict = Verdict.PASS,
     timestamp_utc: datetime = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+    defect_measurements: tuple[DefectMeasurement, ...] = (),
+    drift_status: str | None = None,
 ) -> InspectionResult:
     return InspectionResult(
         inspection_id=inspection_id,
@@ -76,6 +81,8 @@ def _result(
         ),
         anomaly_score=0.91,
         image_refs=("img/raw-1.png", "img/overlay-1.png"),
+        defect_measurements=defect_measurements,
+        drift_status=drift_status,
     )
 
 
@@ -240,6 +247,65 @@ def test_repository_preserves_verdict_and_lineage(
     assert restored.calib_ver == "calib-1"
 
 
+def test_repository_preserves_defect_measurements_and_drift_status(
+    repository: SqliteResultRepository,
+) -> None:
+    measurement = DefectMeasurement(
+        bbox=(1, 2, 3, 4), area_px2=12, area_um2=48.0, aspect_ratio=1.33, morphology="particle"
+    )
+    original = _result(defect_measurements=(measurement,), drift_status="NOMINAL")
+    repository.save_result(original)
+    restored = repository.get_result("insp-1")
+    assert restored is not None
+    assert restored.defect_measurements == (measurement,)
+    assert restored.drift_status == "NOMINAL"
+
+
+def test_repository_stores_derived_metrology_columns_for_querying(
+    session_factory,
+) -> None:
+    """defect_count / max_defect_area_um2 / defect_type / drift_status are
+    denormalized onto InspectionRecord so a fab can query/trend them
+    directly, without decoding defect_measurements_json for every row."""
+    repository = SqliteResultRepository(session_factory)
+    # Largest area first, matching measure_defects()'s own documented
+    # ordering -- _to_record() trusts that ordering rather than re-sorting.
+    measurements = (
+        DefectMeasurement(
+            bbox=(0, 0, 10, 2), area_px2=20, area_um2=80.0, aspect_ratio=5.0, morphology="scratch"
+        ),
+        DefectMeasurement(
+            bbox=(0, 0, 2, 2), area_px2=4, area_um2=16.0, aspect_ratio=1.0, morphology="particle"
+        ),
+    )
+    repository.save_result(
+        _result(defect_measurements=measurements, drift_status="SENSOR_DRIFT_ALERT")
+    )
+
+    with session_factory() as session:
+        record = session.get(InspectionRecord, 1)
+    assert record is not None
+    assert record.defect_count == 2
+    assert record.max_defect_area_um2 == 80.0
+    assert record.defect_type == "scratch"
+    assert record.drift_status == "SENSOR_DRIFT_ALERT"
+
+
+def test_repository_derived_metrology_columns_are_empty_defaults_without_metrology(
+    session_factory,
+) -> None:
+    repository = SqliteResultRepository(session_factory)
+    repository.save_result(_result())
+
+    with session_factory() as session:
+        record = session.get(InspectionRecord, 1)
+    assert record is not None
+    assert record.defect_count == 0
+    assert record.max_defect_area_um2 is None
+    assert record.defect_type is None
+    assert record.drift_status is None
+
+
 def test_repository_save_duplicate_inspection_id_raises(
     repository: SqliteResultRepository,
 ) -> None:
@@ -285,6 +351,47 @@ def test_serialize_traceability_is_valid_json() -> None:
     payload = serialize_traceability(_result())
     parsed = json.loads(payload)
     assert parsed["inspection_id"] == "insp-1"
+
+
+def test_build_mes_payload_promotes_disposition_and_defect_summary() -> None:
+    measurement = DefectMeasurement(
+        bbox=(0, 0, 10, 2), area_px2=20, area_um2=80.0, aspect_ratio=5.0, morphology="scratch"
+    )
+    result = _result(
+        verdict=Verdict.FAIL, defect_measurements=(measurement,), drift_status="NOMINAL"
+    )
+
+    payload = build_mes_payload(result)
+
+    assert payload["event_type"] == "INSPECTION_RESULT"
+    assert payload["station_id"] == "station-A"
+    assert payload["part_id"] == "part-1"
+    assert payload["inspection_id"] == "insp-1"
+    assert payload["disposition"] == "FAIL"
+    assert payload["defect_summary"] == {
+        "defect_count": 1,
+        "max_defect_area_um2": 80.0,
+        "dominant_defect_type": "scratch",
+    }
+    assert payload["drift_status"] == "NOMINAL"
+    assert payload["detail"]["inspection_id"] == "insp-1"
+
+
+def test_build_mes_payload_defect_summary_is_empty_without_metrology() -> None:
+    payload = build_mes_payload(_result())
+    assert payload["defect_summary"] == {
+        "defect_count": 0,
+        "max_defect_area_um2": None,
+        "dominant_defect_type": None,
+    }
+    assert payload["drift_status"] is None
+
+
+def test_serialize_mes_payload_is_valid_json() -> None:
+    payload = serialize_mes_payload(_result())
+    parsed = json.loads(payload)
+    assert parsed["inspection_id"] == "insp-1"
+    assert parsed["event_type"] == "INSPECTION_RESULT"
 
 
 # ---------------------------------------------------------------------------

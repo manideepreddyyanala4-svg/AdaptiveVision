@@ -32,7 +32,9 @@ from adaptivevision.orchestration.pipeline import InspectionPipeline
 from adaptivevision.preprocessing import resize_to
 
 _DATA_ROOT = Path("/home/tonyai/Documents/adaptivevision_M1 (2)/adaptivevision_M1")
-_MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "patchcore_dinov2_mvtec_bottle.onnx"
+_MODEL_PATH = (
+    Path(__file__).resolve().parents[2] / "models" / "patchcore_dinov2_vitb14__mvtec_bottle.onnx"
+)
 _BOTTLE_TEST_DIR = _DATA_ROOT / "mvtec" / "bottle" / "test"
 
 pytestmark = pytest.mark.skipif(

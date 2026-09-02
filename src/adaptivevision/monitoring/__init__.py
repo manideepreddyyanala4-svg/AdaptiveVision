@@ -5,17 +5,29 @@ Specification v1.0. It is intentionally empty at Milestone M0; its modules
 are implemented in the milestone noted above.
 """
 
+from adaptivevision.monitoring.drift import (
+    NOMINAL,
+    SENSOR_DRIFT_ALERT,
+    DriftDetector,
+    DriftReport,
+    ks_two_sample,
+)
 from adaptivevision.monitoring.health import ComponentStatus, HealthCheck
 from adaptivevision.monitoring.metrics import Histogram, MetricsRegistry
 from adaptivevision.monitoring.prometheus import render_metrics
 from adaptivevision.monitoring.spc import ControlChart, control_chart
 
 __all__ = [
+    "NOMINAL",
+    "SENSOR_DRIFT_ALERT",
     "ComponentStatus",
     "ControlChart",
+    "DriftDetector",
+    "DriftReport",
     "HealthCheck",
     "Histogram",
     "MetricsRegistry",
     "control_chart",
+    "ks_two_sample",
     "render_metrics",
 ]

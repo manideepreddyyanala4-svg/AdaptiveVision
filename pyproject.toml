@@ -17,12 +17,17 @@ keywords = ["computer-vision", "aoi", "metrology", "edge-ai", "industrial"]
 # Milestone M18 introduces uvicorn for the containerized edge API server.
 # Milestone M19 introduces pydantic to validate untrusted LLM advisory output
 # before it is converted to the domain's own frozen-dataclass value objects.
+# Milestone M21 introduces PyYAML to load configs/config.yaml (metrology
+# calibration, drift thresholds, KPI targets) -- the one place this package
+# reads a nested settings tree from a file rather than the flat
+# ADAPTIVEVISION_* env vars StationConfig.extra is built around.
 dependencies = [
     "numpy>=1.26,<2",
     "sqlalchemy>=2.0,<3",
     "fastapi>=0.110,<1",
     "uvicorn>=0.29,<1",
     "pydantic>=2.9,<3",
+    "PyYAML>=6.0,<7",
 ]
 
 
@@ -39,6 +44,8 @@ dev = [
     # Only for tests/e2e/test_real_inspection.py's real-image fixtures -- the
     # production code path never touches an image codec (see inference/).
     "opencv-python-headless>=4.9,<5",
+    # Type stubs for the PyYAML core dependency above.
+    "types-PyYAML>=6.0",
 ]
 # Milestone M9/M10 wiring (docs/milestones/M20.md): onnxruntime backs the
 # anomaly detector once app.app.build_anomaly_detector() has a MODEL_PATH

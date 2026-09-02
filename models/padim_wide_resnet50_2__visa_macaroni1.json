@@ -1,0 +1,16 @@
+{
+  "method": "padim_wide_resnet50_2",
+  "family": "padim",
+  "dataset": "visa",
+  "category": "macaroni1",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 29.704647064208984,
+  "calibration_sigma": 11.742118835449219,
+  "n_fit_images": 765,
+  "n_calibration_images": 135,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 100,
+  "exported_utc": "2026-09-01T04:03:27.516271+00:00",
+  "test_auroc": 0.7394
+}

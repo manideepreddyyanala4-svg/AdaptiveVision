@@ -1,0 +1,16 @@
+{
+  "method": "dfm_wide_resnet50_2",
+  "family": "dfm",
+  "dataset": "severstal",
+  "category": null,
+  "height": 128,
+  "width": 800,
+  "calibration_mu": 3.756415843963623,
+  "calibration_sigma": 1.00551176071167,
+  "n_fit_images": 4516,
+  "n_calibration_images": 796,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 1536,
+  "exported_utc": "2026-09-01T04:02:38.202311+00:00",
+  "test_auroc": 0.7290610169491525
+}

@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "grid",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 34.645660400390625,
+  "calibration_sigma": 1.9531135559082031,
+  "n_fit_images": 225,
+  "n_calibration_images": 39,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T13:44:55.950068+00:00",
+  "test_auroc": 1.0
+}

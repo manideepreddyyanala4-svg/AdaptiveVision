@@ -1,0 +1,16 @@
+{
+  "method": "padim_wide_resnet50_2",
+  "family": "padim",
+  "dataset": "kolektor",
+  "category": null,
+  "height": 256,
+  "width": 96,
+  "calibration_mu": 21.494672775268555,
+  "calibration_sigma": 12.199481010437012,
+  "n_fit_images": 1774,
+  "n_calibration_images": 313,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 100,
+  "exported_utc": "2026-08-31T12:22:35.273800+00:00",
+  "test_auroc": 0.954392922513728
+}

@@ -9,12 +9,24 @@ at startup and injected into the subsystems that need it.
 
 from __future__ import annotations
 
+from adaptivevision.config.aoi_config import (
+    AoiConfig,
+    DriftSettings,
+    KpiSettings,
+    MetrologySettings,
+    load_aoi_config,
+)
 from adaptivevision.config.loader import load_config, load_env_file
 from adaptivevision.config.settings import CameraConfig, StationConfig
 
 __all__ = [
+    "AoiConfig",
     "CameraConfig",
+    "DriftSettings",
+    "KpiSettings",
+    "MetrologySettings",
     "StationConfig",
+    "load_aoi_config",
     "load_config",
     "load_env_file",
 ]

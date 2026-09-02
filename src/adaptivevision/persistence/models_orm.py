@@ -50,6 +50,24 @@ class InspectionRecord(Base):
         defects_json: Serialized defects.
         anomaly_score: Overall anomaly score, if computed.
         image_refs_json: Serialized references to archived images.
+        defect_measurements_json: Serialized heatmap-derived shape
+            measurements (Milestone M21).
+        defect_count: Number of measured defect regions (``0`` both when
+            metrology found none and when it wasn't run -- the same
+            can't-tell-apart convention already used by ``defects_json``'s
+            empty-list default). A first-class column (rather than only
+            nested in ``defect_measurements_json``) so a fab can query/trend
+            it directly, matching how ``anomaly_score`` is already a
+            queryable column rather than only living inside ``defects_json``.
+        max_defect_area_um2: Largest single measured defect area, in square
+            microns.
+        defect_type: Morphology of the largest measured defect (``"scratch"``
+            or ``"particle"`` -- see
+            :mod:`adaptivevision.inspection.anomaly.metrology`), or ``None``
+            when no defect was measured.
+        drift_status: Sensor/illumination drift status in effect at the time
+            of this inspection, or ``None`` when no drift detector was wired
+            in (see :mod:`adaptivevision.monitoring.drift`).
     """
 
     __tablename__ = "inspection_results"
@@ -69,6 +87,11 @@ class InspectionRecord(Base):
     anomaly_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     image_refs_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     traceability_json: Mapped[str] = mapped_column(Text, default="")
+    defect_measurements_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    defect_count: Mapped[int] = mapped_column(Integer, default=0)
+    max_defect_area_um2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    defect_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    drift_status: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
 
 class AdvisoryRecord(Base):

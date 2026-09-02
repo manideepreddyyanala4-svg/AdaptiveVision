@@ -38,6 +38,7 @@ calibration/*/
 training/benchmark_results/
 training/benchmark_results_capped_backup/
 training/benchmark_results.quick_smoke_backup_*/
+training/archive/
 training/benchmark/datasets/
 training/logs/
 training/__pycache__/

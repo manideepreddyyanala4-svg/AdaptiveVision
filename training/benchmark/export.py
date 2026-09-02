@@ -119,6 +119,7 @@ def export_one(
     data_root: Path,
     options: RunOptions,
     output_path: Path,
+    benchmark_auroc: float | None = None,
 ) -> dict[str, object]:
     """Fit, calibrate, export and verify one method on one configuration.
 
@@ -189,6 +190,7 @@ def export_one(
         "recommended_threshold": 0.5,
         "embedding_dim": embedding_dim,
         "exported_utc": datetime.now(UTC).isoformat(),
+        "test_auroc": benchmark_auroc,
     }
     output_path.with_suffix(".json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
@@ -203,7 +205,7 @@ def _verify(output_path: Path, test_split: list[tuple[Path, bool]], config: Data
     station can use, so this drives it through ``OnnxInferenceEngine`` and
     ``ThresholdAnomalyDetector`` exactly as the pipeline would.
     """
-    from image_io import load_rgb
+    import cv2
 
     print("verifying with production OnnxInferenceEngine + ThresholdAnomalyDetector:")
     engine = OnnxInferenceEngine(model_dir=output_path.parent, providers=(ExecutionProvider.CPU,))
@@ -218,8 +220,15 @@ def _verify(output_path: Path, test_split: list[tuple[Path, bool]], config: Data
         if path is None:
             print(f"  (no {label} example in test split)")
             continue
+        # (H, W, 3) channel-last, matching what preprocessing.resize_to() produces
+        # from a real camera frame -- ThresholdAnomalyDetector transposes to the
+        # model's (3, H, W) contract itself. Feeding it already-transposed data
+        # here (the old image_io.load_rgb() path) double-transposed it.
+        bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
+        resized = cv2.resize(bgr, (config.width, config.height), interpolation=cv2.INTER_AREA)
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32)
         frame = RectifiedFrame(
-            image=load_rgb(path, config.height, config.width),
+            image=rgb,
             camera_id="benchmark-export",
             frame_id=path.stem,
             calibration_ver="n/a",
@@ -227,7 +236,7 @@ def _verify(output_path: Path, test_split: list[tuple[Path, bool]], config: Data
             timestamp_utc=datetime.now(UTC),
         )
         result = detector.detect(frame)
-        outputs = engine.infer({"input": frame.image})
+        outputs = engine.infer({"input": rgb.transpose(2, 0, 1)})
         embedding_shape = outputs["embedding"].shape
         patch_features_shape = outputs["patch_features"].shape
         print(
@@ -237,8 +246,11 @@ def _verify(output_path: Path, test_split: list[tuple[Path, bool]], config: Data
         )
 
 
-def _leaderboard_targets(winners_csv: Path) -> list[tuple[str, str]]:
-    """Read ``(config_key, method)`` pairs from the leaderboard's winners table.
+def _leaderboard_targets(winners_csv: Path) -> list[tuple[str, str, float | None]]:
+    """Read ``(config_key, method, auroc)`` rows from the leaderboard's winners table.
+
+    ``auroc`` is ``None`` when the winners file predates that column, so the
+    exported manifest just omits a benchmark score rather than failing.
 
     Raises:
         SystemExit: If the winners file has not been generated yet.
@@ -249,7 +261,15 @@ def _leaderboard_targets(winners_csv: Path) -> list[tuple[str, str]]:
         msg = f"No winners table at {winners_csv}. Run training/benchmark/leaderboard.py first."
         raise SystemExit(msg)
     frame = pd.read_csv(winners_csv)
-    return [(str(row["config"]), str(row["method"])) for _, row in frame.iterrows()]
+    has_auroc = "auroc" in frame.columns
+    return [
+        (
+            str(row["config"]),
+            str(row["method"]),
+            float(row["auroc"]) if has_auroc and pd.notna(row["auroc"]) else None,
+        )
+        for _, row in frame.iterrows()
+    ]
 
 
 def main() -> None:
@@ -283,20 +303,30 @@ def main() -> None:
     if args.from_leaderboard:
         targets = _leaderboard_targets(args.winners)
     elif args.method and args.dataset:
-        targets = [(args.dataset, args.method)]
+        targets = [(args.dataset, args.method, None)]
     else:
         msg = "Pass --method and --dataset, or --from-leaderboard."
         raise SystemExit(msg)
 
-    for config_key, method_name in targets:
+    failed: list[tuple[str, str, str]] = []
+    for config_key, method_name, auroc in targets:
         spec = get(method_name)
         if not spec.exportable:
             print(f"skipping {config_key}: winner {method_name!r} is not single-graph exportable")
             continue
         config = parse_config(config_key, args.data_root)
         output_path = args.output_dir / f"{method_name}__{config.slug}.onnx"
-        export_one(method_name, config, args.data_root, options, output_path)
+        try:
+            export_one(method_name, config, args.data_root, options, output_path, auroc)
+        except Exception as exc:  # noqa: BLE001 - one bad config must not stop the batch
+            print(f"FAILED {config_key} ({method_name}): {exc}")
+            failed.append((config_key, method_name, str(exc)))
         print()
+
+    if failed:
+        print(f"{len(failed)} config(s) failed and were skipped:")
+        for config_key, method_name, err in failed:
+            print(f"  {config_key} ({method_name}): {err}")
 
 
 if __name__ == "__main__":

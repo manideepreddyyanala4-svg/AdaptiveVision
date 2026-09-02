@@ -25,6 +25,7 @@ from adaptivevision.recipe.model import DecisionPolicy as RecipeDecisionPolicy
 from adaptivevision.recipe.store import JsonRecipeStore
 
 _REAL_MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
+_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def _config(**extra: object) -> StationConfig:
@@ -71,7 +72,7 @@ def test_build_anomaly_detector_returns_none_without_model_path() -> None:
 
 
 def test_build_anomaly_detector_loads_real_model_and_uses_recipe_threshold() -> None:
-    config = _config(MODEL_PATH="mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
+    config = _config(MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
     recipe = Recipe(
         recipe_id="r",
         version="1",
@@ -84,7 +85,7 @@ def test_build_anomaly_detector_loads_real_model_and_uses_recipe_threshold() -> 
 
 
 def test_build_anomaly_detector_review_on_anomaly_uses_minor_severity() -> None:
-    config = _config(MODEL_PATH="mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
+    config = _config(MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
     recipe = Recipe(
         recipe_id="r",
         version="1",
@@ -95,7 +96,11 @@ def test_build_anomaly_detector_review_on_anomaly_uses_minor_severity() -> None:
     assert detector is not None
 
     frame = RectifiedFrame(
-        image=np.zeros((128, 128), dtype=np.uint8),
+        # (256, 256, 3) channel-last: the real exported model
+        # (patchcore_dinov2_vitb14, see its .json manifest) is a 3-channel,
+        # 256x256 DINOv2 backbone, not the 1-channel 128x128 placeholder this
+        # test used before the M20 model rebuild.
+        image=np.zeros((256, 256, 3), dtype=np.uint8),
         camera_id="cam0",
         frame_id="f1",
         calibration_ver="",
@@ -116,7 +121,7 @@ def test_build_anomaly_detector_non_cpu_provider_falls_back_to_cpu() -> None:
         station_id="s1",
         log_level="INFO",
         execution_provider=ExecutionProvider.OPENVINO,
-        extra={"MODEL_PATH": "mvtec_bottle.onnx", "MODEL_DIR": str(_REAL_MODEL_DIR)},
+        extra={"MODEL_PATH": "patchcore_dinov2_vitb14__mvtec_bottle.onnx", "MODEL_DIR": str(_REAL_MODEL_DIR)},
     )
 
     detector = build_anomaly_detector(config, None)
@@ -125,7 +130,7 @@ def test_build_anomaly_detector_non_cpu_provider_falls_back_to_cpu() -> None:
 
 
 def test_build_anomaly_detector_default_threshold_without_recipe() -> None:
-    config = _config(MODEL_PATH="mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
+    config = _config(MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
 
     detector = build_anomaly_detector(config, None)
 
@@ -165,7 +170,19 @@ def test_build_station_with_model_and_recipe_produces_real_verdict(
     tmp_path: Path,
 ) -> None:
     """The core M9/M10 wiring fix: a configured model/recipe changes the
-    verdict from the unconditional PASS of an unconfigured station."""
+    verdict from the unconditional PASS of an unconfigured station.
+
+    Uses ``tests/fixtures/tiny_grayscale.onnx`` rather than one of the real
+    production models in ``models/``: ``NullCameraDriver`` (the only camera
+    driver that exists so far -- no real device is connected, see
+    ``docs/milestones``) always produces a single-channel grayscale frame,
+    but every real exported model uses a 3-channel ImageNet/DINOv2-pretrained
+    backbone. That mismatch is a genuine, separate architectural gap (a mono
+    synthetic frame can never satisfy a color model's input contract) --
+    tracked, not papered over by this test. This fixture is a tiny 1-channel
+    ONNX graph built for exactly this shape contract, so the test still
+    exercises real ONNX Runtime inference and real wiring end to end.
+    """
     recipe_dir = tmp_path / "recipes"
     recipe_dir.mkdir()
     JsonRecipeStore(recipe_dir).save(Recipe(recipe_id="demo", version="1"))
@@ -176,10 +193,10 @@ def test_build_station_with_model_and_recipe_produces_real_verdict(
         execution_provider=ExecutionProvider.CPU,
         extra={
             "RECIPE_DIR": str(recipe_dir),
-            "MODEL_PATH": "mvtec_bottle.onnx",
-            "MODEL_DIR": str(_REAL_MODEL_DIR),
-            "MODEL_INPUT_HEIGHT": "128",
-            "MODEL_INPUT_WIDTH": "128",
+            "MODEL_PATH": "tiny_grayscale.onnx",
+            "MODEL_DIR": str(_FIXTURES_DIR),
+            "MODEL_INPUT_HEIGHT": "32",
+            "MODEL_INPUT_WIDTH": "32",
         },
     )
 

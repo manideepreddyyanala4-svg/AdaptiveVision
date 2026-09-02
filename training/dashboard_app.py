@@ -35,15 +35,18 @@ import numpy as np
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from image_io import bgr_to_model_input
 
 from adaptivevision.advisory.ollama_engine import OllamaAdvisoryEngine
 from adaptivevision.advisory.pipeline import advise, build_evidence
 from adaptivevision.common.enums import ExecutionProvider, Verdict
+from adaptivevision.common.result import DefectMeasurement
 from adaptivevision.common.types import RectifiedFrame
+from adaptivevision.config.aoi_config import load_aoi_config
 from adaptivevision.decision.policy import Decision
 from adaptivevision.inference.onnx import OnnxInferenceEngine
 from adaptivevision.inspection.anomaly.detector import ThresholdAnomalyDetector
+from adaptivevision.inspection.anomaly.metrology import MetrologyConfig, measure_defects
+from adaptivevision.monitoring.drift import DriftDetector, DriftReport
 from adaptivevision.persistence.database import open_database
 from adaptivevision.persistence.repositories import SqliteResultRepository
 from adaptivevision.retrieval import FaissRetrievalIndex
@@ -84,6 +87,67 @@ _advisory_engine = OllamaAdvisoryEngine(model="llama3:latest")
 RETRIEVAL_DIR = REPO_ROOT / "training" / "benchmark_results" / "retrieval"
 _retrieval_index_cache: dict[str, FaissRetrievalIndex | None] = {}
 
+#: Milestone M21: metrology calibration + drift thresholds, loaded once from
+#: configs/config.yaml (see adaptivevision.config.aoi_config).
+_aoi_config = load_aoi_config()
+
+#: Real scores bootstrapped so far per model, before a DriftDetector exists.
+_drift_baselines: dict[str, list[float]] = {}
+#: One DriftDetector per model, built once its baseline is fully bootstrapped.
+_drift_detectors: dict[str, DriftDetector] = {}
+#: Scores needed to bootstrap a model's baseline before drift checks start.
+#: Deliberately real observed scores, not synthesized ones: an earlier
+#: version of this function drew a synthetic Normal(calibration_mu,
+#: calibration_sigma) baseline from the manifest, but calibration_mu/sigma
+#: are the *pre-sigmoid* raw-score statistics computed at export time (see
+#: training/benchmark/export.py's ProductionExport, which bakes
+#: sigmoid((raw - mu) / sigma) into the graph itself) -- a completely
+#: different scale from the exported model's actual (post-sigmoid) output
+#: score. Comparing that output against a baseline built from the
+#: pre-sigmoid statistic is a unit mismatch, not a real drift signal, and
+#: produced a false SENSOR_DRIFT_ALERT on the very second upload during
+#: testing. This project has no persisted store of real historical
+#: known-good scores to seed a baseline from instead, so this bootstraps one
+#: from whatever's actually uploaded -- an honest baseline on the right
+#: scale, at the cost of assuming early uploads are representative of normal
+#: operation (a real deployment should instead seed this from a curated
+#: batch of confirmed-good commissioning images, not live traffic that may
+#: itself include defective parts).
+_DRIFT_BASELINE_SIZE = 20
+
+
+def _drift_report_for(manifest: dict[str, Any], score: float) -> DriftReport | None:
+    """Update this model's drift baseline/window with ``score``.
+
+    Args:
+        manifest: The manifest of the model that produced ``score``.
+        score: The anomaly score just computed for one inspection.
+
+    Returns:
+        A :class:`DriftReport` once this model has a fully bootstrapped
+        baseline (see :data:`_DRIFT_BASELINE_SIZE`) and at least two scores
+        recorded against it, otherwise ``None`` -- including for the score
+        that completes the baseline itself, since it was just absorbed into
+        the reference distribution rather than compared against it.
+    """
+    name = manifest.get("name", "")
+    if not name:
+        return None
+
+    if name not in _drift_detectors:
+        baseline = _drift_baselines.setdefault(name, [])
+        baseline.append(score)
+        if len(baseline) < _DRIFT_BASELINE_SIZE:
+            return None
+        _drift_detectors[name] = DriftDetector(
+            baseline,
+            window_size=_aoi_config.drift.window_size,
+            p_value_threshold=_aoi_config.drift.p_value_threshold,
+        )
+        return None
+
+    return _drift_detectors[name].record(score)
+
 
 def _retrieval_index_for(model_name: str) -> FaissRetrievalIndex | None:
     """Return the cached FAISS index for ``model_name``, or ``None`` if it has none."""
@@ -111,11 +175,9 @@ def _retrieval_index_for(model_name: str) -> FaissRetrievalIndex | None:
 
 
 def _load_manifests() -> list[dict[str, Any]]:
-    """List every trained model (PaDiM or PatchCore) with a valid ``<name>.json`` sidecar."""
+    """List every trained model (any method family) with a valid ``<name>.json`` sidecar."""
     manifests = []
-    for onnx_path in sorted(
-        [*MODELS_DIR.glob("padim_*.onnx"), *MODELS_DIR.glob("patchcore_*.onnx")]
-    ):
+    for onnx_path in sorted(MODELS_DIR.glob("*.onnx")):
         manifest_path = onnx_path.with_suffix(".json")
         if not manifest_path.exists():
             continue
@@ -191,6 +253,82 @@ def _cached_thumbnail(path: Path) -> str | None:
     return encoded
 
 
+#: 3x3 coarse region names, indexed [row][col], row/col in {0,1,2}.
+_REGION_NAMES = (
+    ("upper-left", "upper-center", "upper-right"),
+    ("center-left", "center", "center-right"),
+    ("lower-left", "lower-center", "lower-right"),
+)
+
+
+def _compute_heatmap(
+    patch_features: np.ndarray, rgb_resized: np.ndarray
+) -> tuple[str, str, list[DefectMeasurement]] | tuple[None, None, list[DefectMeasurement]]:
+    """Overlay a per-patch anomaly heatmap on the resized query image, and
+    measure the defect regions in it.
+
+    The exported ONNX graph's ``patch_features`` output gives each patch's
+    feature vector but not its distance to the fitted memory bank (that bank
+    isn't part of the exported graph), so this can't reproduce the exact
+    per-patch score PatchCore itself uses. Instead it scores each patch by
+    its distance from this *same image's* own median patch: real defects are
+    the visual outlier against the rest of a mostly-normal part, which is
+    what makes this a legitimate (if approximate) localization signal rather
+    than a fabricated one -- it degrades gracefully (returns
+    ``(None, None, [])``) rather than pretending precision it doesn't have
+    when the patch grid can't be reshaped cleanly.
+
+    Defect metrology (Milestone M21) runs on the same upsampled grid the
+    color overlay is built from, in real display-pixel units, so
+    ``DefectMeasurement.bbox``/``area_px2`` line up with the returned image.
+
+    Args:
+        patch_features: ``(n_patches, dim)`` feature vectors from the model.
+        rgb_resized: The ``(H, W, 3)`` RGB image the model actually saw.
+
+    Returns:
+        ``(heatmap data: URL, coarse region name, defect measurements)``, or
+        ``(None, None, [])`` if the patch grid shape can't be recovered.
+    """
+    n_patches = patch_features.shape[0]
+    grid = int(round(n_patches**0.5))
+    if grid * grid != n_patches:
+        return None, None, []
+
+    median_patch = np.median(patch_features, axis=0, keepdims=True)
+    distances = np.linalg.norm(patch_features - median_patch, axis=1)
+    grid_map = distances.reshape(grid, grid)
+
+    peak_row, peak_col = np.unravel_index(np.argmax(grid_map), grid_map.shape)
+    region = _REGION_NAMES[min(2, peak_row * 3 // grid)][min(2, peak_col * 3 // grid)]
+
+    lo, hi = float(grid_map.min()), float(grid_map.max())
+    normalized = np.zeros_like(grid_map, dtype=np.uint8) if hi <= lo else (
+        (grid_map - lo) / (hi - lo) * 255
+    ).astype(np.uint8)
+
+    height, width = rgb_resized.shape[:2]
+    upsampled = cv2.resize(normalized, (width, height), interpolation=cv2.INTER_CUBIC)
+    colored = cv2.applyColorMap(upsampled, cv2.COLORMAP_TURBO)
+    bgr_resized = cv2.cvtColor(rgb_resized.astype(np.uint8), cv2.COLOR_RGB2BGR)
+    overlay = cv2.addWeighted(bgr_resized, 0.55, colored, 0.45, 0)
+
+    ok, buf = cv2.imencode(".jpg", overlay, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    if not ok:
+        return None, None, []
+    data_url = "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode("ascii")
+
+    measurements = measure_defects(
+        upsampled.astype(np.float64),
+        MetrologyConfig(
+            pixel_to_micron=_aoi_config.metrology.pixel_to_micron,
+            min_area_px2=_aoi_config.metrology.min_area_px2,
+            threshold_percentile=_aoi_config.metrology.threshold_percentile,
+        ),
+    )
+    return data_url, region, measurements
+
+
 def _score_image(
     bgr: np.ndarray,
     filename: str,
@@ -199,7 +337,13 @@ def _score_image(
     engine: OnnxInferenceEngine,
 ) -> dict[str, Any]:
     """Run one decoded BGR image through ``detector`` and shape the API response."""
-    image = bgr_to_model_input(bgr, manifest["height"], manifest["width"])
+    # (H, W, 3) channel-last -- ThresholdAnomalyDetector.detect() transposes to
+    # the model's (3, H, W) contract itself. Feeding it bgr_to_model_input()'s
+    # already-transposed output here double-transposed it (production bug,
+    # same root cause already fixed in training/benchmark/export.py's
+    # verification step: see docs/milestones/M20.md).
+    resized = cv2.resize(bgr, (manifest["width"], manifest["height"]), interpolation=cv2.INTER_AREA)
+    image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32)
     frame = RectifiedFrame(
         image=image,
         camera_id="dashboard-upload",
@@ -210,10 +354,18 @@ def _score_image(
     )
     result = detector.detect(frame)
 
+    outputs = engine.infer({"input": image.transpose(2, 0, 1)})
+    heatmap, heatmap_region, defect_measurements = _compute_heatmap(
+        np.asarray(outputs["patch_features"]), image
+    )
+
+    drift_report = _drift_report_for(manifest, result.score)
+    drift_status = drift_report.status if drift_report is not None else None
+
     retrieval_matches = ()
     index = _retrieval_index_for(manifest.get("name", ""))
     if index is not None:
-        embedding = engine.infer({"input": image})["embedding"]
+        embedding = outputs["embedding"]
         retrieval_matches = index.search(np.asarray(embedding, dtype=np.float32), top_k=3)
 
     decision = Decision(
@@ -227,6 +379,7 @@ def _score_image(
         model_ver=manifest.get("name", "unknown"),
         decision=decision,
         retrieval_matches=retrieval_matches,
+        heatmap_region=heatmap_region,
     )
     report = advise(evidence, advisory=_advisory_engine)
 
@@ -238,9 +391,14 @@ def _score_image(
         "verdict": "FAIL" if result.is_anomalous else "PASS",
         "defects": [d.description for d in result.defects if d.description],
         "thumbnail": _encode_thumbnail(bgr),
+        "heatmap": heatmap,
+        "heatmap_region": heatmap_region,
         "resized_to": f"{manifest['width']}x{manifest['height']}",
         "advisory": report.to_dict() if report is not None else None,
         "similar_historical_defects": [m.to_dict() for m in retrieval_matches],
+        "defect_measurements": [m.to_dict() for m in defect_measurements],
+        "drift_status": drift_status,
+        "drift_report": drift_report.to_dict() if drift_report is not None else None,
     }
 
 
@@ -479,6 +637,32 @@ _PAGE_HTML = r"""<!doctype html>
   .card .body { padding: 10px; }
   .card .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
   .card .name { color: var(--muted); font-size: 11px; margin-top: 4px; word-break: break-all; }
+  #score-results.grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  #score-results .card img { height: 200px; }
+  #score-results .card { cursor: default; }
+  #score-results .card:hover { transform: none; }
+  .heatmap-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .heatmap-pair img { width: 100%; height: 160px; object-fit: cover; display: block; background: #000; }
+  .heatmap-pair .img-caption {
+    background: var(--panel); color: var(--muted); font-size: 10px; text-align: center; padding: 3px 0;
+  }
+  .advisory {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+    font-size: 12px; line-height: 1.5;
+  }
+  .advisory-title { font-weight: 700; margin-bottom: 4px; }
+  .advisory-field { margin-top: 4px; color: var(--muted); }
+  .advisory-field b { color: var(--text, #eee); }
+  .advisory-field ul { margin: 4px 0 0 18px; padding: 0; }
+  .metrology-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+  .metrology-table th, .metrology-table td { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+  .metrology-table th { color: var(--muted); font-weight: 600; }
+  .drift-gauge { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .drift-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .drift-nominal .drift-dot { background: var(--pass); }
+  .drift-nominal span:nth-child(2) { color: var(--pass); font-weight: 700; }
+  .drift-alert .drift-dot { background: var(--fail); box-shadow: 0 0 6px var(--fail); }
+  .drift-alert span:nth-child(2) { color: var(--fail); font-weight: 700; }
   .correct { outline: 2px solid rgba(46,204,113,.5); }
   .wrong { outline: 2px solid rgba(255,93,93,.6); }
   .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
@@ -728,8 +912,58 @@ function renderScoreResults(data) {
       </div></div>`;
     }
     const pct = Math.round(r.score * 100);
+    const adv = r.advisory;
+    const advisoryHtml = adv ? `
+        <div class="advisory">
+          <div class="advisory-title">🤖 AI explanation (${adv.is_fallback ? 'offline fallback' : 'llama3'}, confidence ${Math.round(adv.confidence_score * 100)}%)</div>
+          <div class="advisory-field"><b>Classification:</b> ${escapeHtml(adv.defect_classification)}</div>
+          <div class="advisory-field"><b>Likely cause:</b> ${escapeHtml(adv.root_cause_hypothesis)}</div>
+          ${adv.recommended_actions && adv.recommended_actions.length ? `
+          <div class="advisory-field"><b>Recommended actions:</b>
+            <ul>${adv.recommended_actions.map(a => `<li>${escapeHtml(a)}</li>`).join('')}</ul>
+          </div>` : ''}
+        </div>` : '';
+    const matches = r.similar_historical_defects || [];
+    const retrievalHtml = matches.length ? `
+        <div class="advisory">
+          <div class="advisory-title">🔎 Similar historical defects</div>
+          ${matches.map(m => `<div class="advisory-field">${escapeHtml(m.defect_type || 'unknown')} — ${escapeHtml(m.dataset || '')}/${escapeHtml(m.category || '')} (similarity ${Math.round((m.similarity || 0) * 100)}%)</div>`).join('')}
+        </div>` : '';
+    const heatmapHtml = r.heatmap ? `
+        <div class="heatmap-pair">
+          <div><img src="${r.thumbnail}" alt="original"><div class="img-caption">original</div></div>
+          <div><img src="${r.heatmap}" alt="heatmap"><div class="img-caption">strongest signal: ${escapeHtml(r.heatmap_region || 'unknown')} (approximate)</div></div>
+        </div>` : `<img src="${r.thumbnail}" alt="">`;
+    const measurements = r.defect_measurements || [];
+    const metrologyHtml = measurements.length ? `
+        <div class="advisory">
+          <div class="advisory-title">📏 Defect metrology</div>
+          <table class="metrology-table">
+            <thead><tr><th>#</th><th>type</th><th>bbox (x,y,w,h)</th><th>area</th><th>aspect</th></tr></thead>
+            <tbody>
+              ${measurements.map((m, i) => `<tr>
+                <td>${i + 1}</td>
+                <td>${escapeHtml(m.morphology)}</td>
+                <td>${m.bbox.join(', ')}</td>
+                <td>${m.area_um2.toFixed(1)} µm²</td>
+                <td>${m.aspect_ratio.toFixed(2)}:1</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : '';
+    const drift = r.drift_report;
+    const driftAlert = r.drift_status === 'SENSOR_DRIFT_ALERT';
+    const driftHtml = drift ? `
+        <div class="advisory">
+          <div class="advisory-title">📡 Optical drift monitor</div>
+          <div class="drift-gauge ${driftAlert ? 'drift-alert' : 'drift-nominal'}">
+            <span class="drift-dot"></span>
+            <span>${driftAlert ? 'SENSOR DRIFT ALERT' : 'NOMINAL'}</span>
+            <span class="meta">(p=${drift.p_value.toFixed(4)}, window ${drift.window_size}/${drift.baseline_size})</span>
+          </div>
+        </div>` : '';
     return `<div class="card">
-      <img src="${r.thumbnail}" alt="">
+      ${heatmapHtml}
       <div class="body">
         <div class="row">
           <span class="badge ${r.is_anomalous ? 'fail' : 'pass'}">${r.verdict}</span>
@@ -738,6 +972,10 @@ function renderScoreResults(data) {
         <div class="score-bar"><div style="width:${pct}%"></div></div>
         <div class="meta">resized to ${r.resized_to}</div>
         <div class="name">${escapeHtml(r.filename)}</div>
+        ${advisoryHtml}
+        ${retrievalHtml}
+        ${metrologyHtml}
+        ${driftHtml}
       </div>
     </div>`;
   }).join('');

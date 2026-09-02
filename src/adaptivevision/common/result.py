@@ -60,6 +60,58 @@ class Defect:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class DefectMeasurement:
+    """A physically-measured defect region extracted from an anomaly heatmap
+    (Milestone M21).
+
+    Produced by :func:`adaptivevision.inspection.anomaly.metrology.measure_defects`
+    from one connected region of a thresholded anomaly heatmap -- shape data,
+    not a pass/fail judgment (that's still the decision policy's job).
+
+    Attributes:
+        bbox: Pixel-space bounding box as ``(x, y, width, height)``, ``x``/``y``
+            being the top-left corner.
+        area_px2: Region area in pixels.
+        area_um2: Region area in square microns, via a caller-supplied
+            pixel-to-micron calibration factor.
+        aspect_ratio: Bounding-box long-side / short-side ratio, always
+            ``>= 1.0``.
+        morphology: Coarse shape classification --
+            :data:`~adaptivevision.inspection.anomaly.metrology.SCRATCH` when
+            ``aspect_ratio`` exceeds the elongation threshold, otherwise
+            :data:`~adaptivevision.inspection.anomaly.metrology.PARTICLE`.
+    """
+
+    bbox: tuple[int, int, int, int]
+    area_px2: int
+    area_um2: float
+    aspect_ratio: float
+    morphology: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a JSON-friendly dictionary."""
+        return {
+            "bbox": list(self.bbox),
+            "area_px2": self.area_px2,
+            "area_um2": self.area_um2,
+            "aspect_ratio": self.aspect_ratio,
+            "morphology": self.morphology,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Deserialize from a dictionary produced by :meth:`to_dict`."""
+        bbox = data["bbox"]
+        return cls(
+            bbox=(int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])),
+            area_px2=data["area_px2"],
+            area_um2=data["area_um2"],
+            aspect_ratio=data["aspect_ratio"],
+            morphology=data["morphology"],
+        )
+
+
 class PartialResult(abc.ABC):
     """Base type for the output of a single inspector."""
 
@@ -106,6 +158,9 @@ class AnomalyResult(PartialResult):
         is_anomalous: Whether the detector flagged the part as anomalous.
         heatmap_ref: Optional reference to the archived anomaly heatmap.
         defects: Anomaly defects raised by the inspector.
+        defect_measurements: Optional per-region shape measurements extracted
+            from the anomaly heatmap (Milestone M21), empty when metrology
+            wasn't run.
     """
 
     score: float
@@ -113,6 +168,7 @@ class AnomalyResult(PartialResult):
     is_anomalous: bool
     heatmap_ref: str | None = None
     defects: tuple[Defect, ...] = ()
+    defect_measurements: tuple[DefectMeasurement, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-friendly dictionary."""
@@ -122,6 +178,7 @@ class AnomalyResult(PartialResult):
             "is_anomalous": self.is_anomalous,
             "heatmap_ref": self.heatmap_ref,
             "defects": [d.to_dict() for d in self.defects],
+            "defect_measurements": [m.to_dict() for m in self.defect_measurements],
         }
 
     @classmethod
@@ -133,6 +190,9 @@ class AnomalyResult(PartialResult):
             is_anomalous=data["is_anomalous"],
             heatmap_ref=data.get("heatmap_ref"),
             defects=tuple(Defect.from_dict(d) for d in data["defects"]),
+            defect_measurements=tuple(
+                DefectMeasurement.from_dict(m) for m in data.get("defect_measurements", ())
+            ),
         )
 
 
@@ -180,6 +240,12 @@ class InspectionResult:
         defects: Detected defects.
         anomaly_score: Overall anomaly score, if computed.
         image_refs: References to archived images for this part.
+        defect_measurements: Heatmap-derived shape measurements (Milestone
+            M21), empty when metrology wasn't run.
+        drift_status: Sensor/illumination drift status in effect at the time
+            of this inspection (:data:`~adaptivevision.monitoring.drift.SENSOR_DRIFT_ALERT`
+            or :data:`~adaptivevision.monitoring.drift.NOMINAL`), or ``None``
+            when no drift detector was wired in.
     """
 
     inspection_id: str
@@ -195,6 +261,8 @@ class InspectionResult:
     defects: tuple[Defect, ...] = ()
     anomaly_score: float | None = None
     image_refs: tuple[str, ...] = field(default_factory=tuple)
+    defect_measurements: tuple[DefectMeasurement, ...] = ()
+    drift_status: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-friendly dictionary."""
@@ -212,6 +280,8 @@ class InspectionResult:
             "defects": [d.to_dict() for d in self.defects],
             "anomaly_score": self.anomaly_score,
             "image_refs": list(self.image_refs),
+            "defect_measurements": [m.to_dict() for m in self.defect_measurements],
+            "drift_status": self.drift_status,
         }
 
     @classmethod
@@ -231,6 +301,10 @@ class InspectionResult:
             defects=tuple(Defect.from_dict(d) for d in data["defects"]),
             anomaly_score=data.get("anomaly_score"),
             image_refs=tuple(data.get("image_refs", ())),
+            defect_measurements=tuple(
+                DefectMeasurement.from_dict(m) for m in data.get("defect_measurements", ())
+            ),
+            drift_status=data.get("drift_status"),
         )
 
 
@@ -300,6 +374,11 @@ class InspectionEvidence:
         severity: Deterministic severity established by the decision policy.
         model_ver: Version of the anomaly model that produced the score.
         retrieval_matches: Historical matches retrieved for this sample.
+        heatmap_region: Coarse, computed description of where the anomaly
+            concentrates in the image (e.g. ``"upper-right region"``), if a
+            per-patch localization signal was available. Real, measured
+            evidence like every other field here -- never a place for the
+            advisory layer to guess; ``None`` when no localization was run.
     """
 
     sample_id: str
@@ -308,6 +387,7 @@ class InspectionEvidence:
     severity: Severity
     model_ver: str
     retrieval_matches: tuple[RetrievalMatch, ...] = ()
+    heatmap_region: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-friendly dictionary."""
@@ -318,6 +398,7 @@ class InspectionEvidence:
             "severity": self.severity.value,
             "model_ver": self.model_ver,
             "retrieval_matches": [m.to_dict() for m in self.retrieval_matches],
+            "heatmap_region": self.heatmap_region,
         }
 
     @classmethod
@@ -332,6 +413,7 @@ class InspectionEvidence:
             retrieval_matches=tuple(
                 RetrievalMatch.from_dict(m) for m in data.get("retrieval_matches", ())
             ),
+            heatmap_region=data.get("heatmap_region"),
         )
 
 

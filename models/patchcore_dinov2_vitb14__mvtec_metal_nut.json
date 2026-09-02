@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "metal_nut",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 40.92184829711914,
+  "calibration_sigma": 2.2612035274505615,
+  "n_fit_images": 187,
+  "n_calibration_images": 33,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T14:29:12.138788+00:00",
+  "test_auroc": 0.9977191267513849
+}

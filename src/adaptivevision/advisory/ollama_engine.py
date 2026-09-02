@@ -25,16 +25,27 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "qwen2.5:7b"
 
 _SYSTEM_PROMPT = (
-    "You are a manufacturing quality-inspection assistant. You are given "
-    "deterministic evidence about one inspected part. Respond ONLY with a "
-    "JSON object matching the requested schema.\n"
+    "You are a manufacturing quality-inspection assistant helping a line "
+    "operator decide what to do about one inspected part. You are given "
+    "deterministic evidence about it. Respond ONLY with a JSON object "
+    "matching the requested schema.\n"
     "Rules:\n"
-    "- Do not invent evidence beyond what is supplied.\n"
+    "- Do not invent evidence beyond what is supplied -- no specific defect "
+    "geometry, root cause, or process detail that isn't implied by the "
+    "evidence given.\n"
     "- Clearly distinguish your hypothesis from established fact.\n"
     "- The severity has already been determined by a deterministic system "
     "and is not part of your response; do not restate or contradict it.\n"
     "- If you are uncertain, say so in root_cause_hypothesis and lower "
-    "confidence_score accordingly."
+    "confidence_score accordingly.\n"
+    "- root_cause_hypothesis should be 2-4 sentences: name the most likely "
+    "failure mode given the evidence, reason briefly about why (referencing "
+    "the score, the heatmap region, and any historical matches supplied), "
+    "and note what would need to be true for an alternative explanation.\n"
+    "- recommended_actions should be 2-4 concrete, specific next steps a "
+    "line operator or quality engineer could actually do next (not generic "
+    "advice like 'investigate further') -- ground each one in the evidence "
+    "given, e.g. referencing the flagged region or the matched defect type."
 )
 
 
@@ -114,15 +125,23 @@ def _build_prompt(evidence: InspectionEvidence) -> str:
         )
         or "  (none)"
     )
+    region_line = (
+        f"Heatmap region (where the per-patch anomaly signal concentrates): "
+        f"{evidence.heatmap_region}\n"
+        if evidence.heatmap_region
+        else ""
+    )
     return (
         f"Category: {evidence.category}\n"
         f"Anomaly score: {evidence.anomaly_score}\n"
         f"Deterministic severity: {evidence.severity.value}\n"
         f"Model version: {evidence.model_ver}\n"
+        f"{region_line}"
         f"Historical similar defects (nearest first):\n{matches}\n\n"
         'Respond with JSON: {"defect_classification": str, '
-        '"confidence_score": float in [0,1], "root_cause_hypothesis": str, '
-        '"recommended_actions": [str, ...]}'
+        '"confidence_score": float in [0,1], "root_cause_hypothesis": str '
+        "(2-4 sentences, reasoned from the evidence above), "
+        '"recommended_actions": [str, ...] (2-4 concrete steps)}'
     )
 
 
@@ -142,6 +161,8 @@ def _fallback_report(evidence: InspectionEvidence) -> AdvisoryReport:
     """Build a deterministic report from evidence alone, no LLM involved."""
     nearest = evidence.retrieval_matches[0] if evidence.retrieval_matches else None
     hypothesis = f"No LLM analysis available. Deterministic severity is {evidence.severity.value}."
+    if evidence.heatmap_region:
+        hypothesis += f" Anomaly signal concentrated in the {evidence.heatmap_region}."
     if nearest is not None:
         hypothesis += (
             f" Most similar historical defect on record: {nearest.defect_type} "

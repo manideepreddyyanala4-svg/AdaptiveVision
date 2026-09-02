@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitl14",
+  "family": "patchcore",
+  "dataset": "visa",
+  "category": "chewinggum",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 36.561153411865234,
+  "calibration_sigma": 2.293504476547241,
+  "n_fit_images": 386,
+  "n_calibration_images": 67,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-09-01T04:03:18.426439+00:00",
+  "test_auroc": 0.9728666666666667
+}

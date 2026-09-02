@@ -24,6 +24,7 @@ from adaptivevision.common.interfaces import AdvisoryRepository, ResultRepositor
 from adaptivevision.common.result import (
     AdvisoryReport,
     Defect,
+    DefectMeasurement,
     InspectionEvidence,
     InspectionResult,
 )
@@ -109,6 +110,7 @@ class SqliteResultRepository(ResultRepository):
 
 def _to_record(result: InspectionResult) -> InspectionRecord:
     """Map a domain :class:`InspectionResult` to an ORM record."""
+    areas = [m.area_um2 for m in result.defect_measurements]
     return InspectionRecord(
         inspection_id=result.inspection_id,
         part_id=result.part_id,
@@ -124,6 +126,12 @@ def _to_record(result: InspectionResult) -> InspectionRecord:
         anomaly_score=result.anomaly_score,
         image_refs_json=list(result.image_refs),
         traceability_json=serialize_traceability(result),
+        defect_measurements_json=[m.to_dict() for m in result.defect_measurements],
+        defect_count=len(result.defect_measurements),
+        max_defect_area_um2=max(areas) if areas else None,
+        # Largest defect first, per measure_defects()'s documented ordering.
+        defect_type=result.defect_measurements[0].morphology if result.defect_measurements else None,
+        drift_status=result.drift_status,
     )
 
 
@@ -143,6 +151,10 @@ def _from_record(record: InspectionRecord) -> InspectionResult:
         defects=tuple(Defect.from_dict(d) for d in record.defects_json),
         anomaly_score=record.anomaly_score,
         image_refs=tuple(record.image_refs_json),
+        defect_measurements=tuple(
+            DefectMeasurement.from_dict(m) for m in record.defect_measurements_json
+        ),
+        drift_status=record.drift_status,
     )
 
 

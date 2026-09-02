@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from typing import Any
 
@@ -146,6 +147,31 @@ def test_fallback_report_without_retrieval_matches() -> None:
     report = _fallback_report(evidence)
     assert report.defect_classification == "unknown"
     assert "Most similar historical defect" not in report.root_cause_hypothesis
+
+
+def test_fallback_report_mentions_heatmap_region_when_present() -> None:
+    from adaptivevision.advisory.ollama_engine import _fallback_report
+
+    evidence = InspectionEvidence(
+        sample_id="insp-1",
+        category="bottle",
+        anomaly_score=0.9,
+        severity=Severity.MAJOR,
+        model_ver="patchcore-v1",
+        retrieval_matches=(),
+        heatmap_region="upper-right",
+    )
+    report = _fallback_report(evidence)
+    assert "upper-right" in report.root_cause_hypothesis
+
+
+def test_build_prompt_includes_heatmap_region_line_when_present() -> None:
+    from adaptivevision.advisory.ollama_engine import _build_prompt
+
+    evidence = _evidence()
+    with_region = dataclasses.replace(evidence, heatmap_region="lower-center")
+    assert "lower-center" in _build_prompt(with_region)
+    assert "Heatmap region" not in _build_prompt(evidence)
 
 
 def test_try_import_ollama_returns_module_when_installed() -> None:
