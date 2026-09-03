@@ -1,5 +1,4 @@
-"""The composition root: wires every seam to a concrete implementation and
-assembles the station.
+"""The composition root: wires every seam to a concrete implementation and assembles the station.
 
 This is the one file that knows about every other module in the package --
 that's deliberate. Everything else only imports the small interface it
@@ -56,8 +55,7 @@ from adaptivevision.orchestration import (
     InspectionScheduler,
     StationStateMachine,
 )
-from adaptivevision.storage import make_persistence_handler, open_database
-from adaptivevision.storage import SqliteResultRepository
+from adaptivevision.storage import SqliteResultRepository, make_persistence_handler, open_database
 
 #: Type of the ``on_result`` persistence hook.
 OnResult = Callable[[InspectionResult], None]

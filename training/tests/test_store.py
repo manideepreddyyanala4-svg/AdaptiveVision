@@ -65,8 +65,12 @@ def test_compute_run_id_changes_with_schema_version() -> None:
 
 def test_compute_run_id_stable_field_order() -> None:
     """dict insertion order must not matter -- json.dumps(sort_keys=True)."""
-    a = compute_run_id(method="dfm_wide_resnet50_2", regime="oneclass", config_key="kolektor", seed=0)
-    b = compute_run_id(seed=0, config_key="kolektor", regime="oneclass", method="dfm_wide_resnet50_2")
+    a = compute_run_id(
+        method="dfm_wide_resnet50_2", regime="oneclass", config_key="kolektor", seed=0
+    )
+    b = compute_run_id(
+        seed=0, config_key="kolektor", regime="oneclass", method="dfm_wide_resnet50_2"
+    )
     assert a == b
 
 

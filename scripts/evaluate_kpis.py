@@ -1,4 +1,4 @@
-"""Industrial yield KPI evaluator: Overkill Rate vs. Escape Rate (Milestone M21).
+r"""Industrial yield KPI evaluator: Overkill Rate vs. Escape Rate (Milestone M21).
 
 A benchmark leaderboard ranks models by AUROC; a fab has to commit to one
 threshold and live with the two errors it can make at completely different

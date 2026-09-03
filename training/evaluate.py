@@ -646,7 +646,10 @@ def run_cost_pass(results_db: Path, checkpoint_root: Path, device: str) -> tuple
         path = store.checkpoint_path(checkpoint_root, regime, method, config_key)
         scorer = store.load_checkpoint(path, device=device)
         if scorer is None:
-            print(f"[{index}/{len(pending)}] {method} @ {config_key}: no checkpoint at {path}, skipping")
+            print(
+                f"[{index}/{len(pending)}] {method} @ {config_key}: "
+                f"no checkpoint at {path}, skipping"
+            )
             skipped += 1
             continue
         cost = measure_inference_cost(scorer, height, width, device)
@@ -901,7 +904,9 @@ def main_deploy(argv: list[str] | None = None) -> None:
 # against.
 
 
-def _pixel_backfill(artifact, config: DatasetConfig, data_root: Path, seed: int) -> dict[str, float] | None:
+def _pixel_backfill(
+    artifact, config: DatasetConfig, data_root: Path, seed: int
+) -> dict[str, float] | None:
     """Recompute pixel metrics (for aupimo) over the same sample the sweep used."""
     if artifact.maps is None or not has_masks(config):
         return None
@@ -959,13 +964,14 @@ def run_metrics_pass(results_db: Path, artifact_root: Path, data_root: Path) -> 
 
     updated = 0
     skipped = 0
-    for index, (run_id, regime, method, config_key, dataset, category, height, width, seed) in enumerate(
-        pending, start=1
-    ):
+    for index, row in enumerate(pending, start=1):
+        run_id, regime, method, config_key, dataset, category, height, width, seed = row
         path = store.artifact_path(artifact_root, regime, method, config_key, seed)
         artifact = store.load_artifact(path)
         if artifact is None:
-            print(f"[{index}/{len(pending)}] {method} @ {config_key}: no artifact at {path}, skipping")
+            print(
+                f"[{index}/{len(pending)}] {method} @ {config_key}: no artifact at {path}, skipping"
+            )
             skipped += 1
             continue
 
@@ -1387,7 +1393,9 @@ def rank_regime(frame: pd.DataFrame, regime: str) -> pd.DataFrame:
         "min_auroc": ("auroc_mean", "min"),
         "peak_vram_gb": ("peak_vram_gb_mean", "max"),
     }
-    aggregations.update({label: (f"{column}_mean", "mean") for column, label in _MEAN_COLUMNS.items()})
+    aggregations.update(
+        {label: (f"{column}_mean", "mean") for column, label in _MEAN_COLUMNS.items()}
+    )
     # The "typical" std shown per method is the mean of its per-cell stds --
     # a summary of observed seed variability, not a properly pooled variance
     # (which would need per-cell sample sizes and isn't worth the complexity
@@ -1465,7 +1473,9 @@ def regime_comparison(frame: pd.DataFrame) -> pd.DataFrame:
     subset = ok[ok["config"].isin(common)]
     cell_means = aggregate_seeds(subset, group_cols=("method", "config", "regime"))
     table = (
-        cell_means.pivot_table(index="method", columns="regime", values="auroc_mean", aggfunc="mean")
+        cell_means.pivot_table(
+            index="method", columns="regime", values="auroc_mean", aggfunc="mean"
+        )
         .round(4)
         .reset_index()
     )
@@ -1483,7 +1493,9 @@ def per_dataset(frame: pd.DataFrame, regime: str) -> pd.DataFrame:
         return pd.DataFrame()
     cell_means = aggregate_seeds(subset, group_cols=("method", "dataset", "regime"))
     return (
-        cell_means.pivot_table(index="method", columns="dataset", values="auroc_mean", aggfunc="mean")
+        cell_means.pivot_table(
+            index="method", columns="dataset", values="auroc_mean", aggfunc="mean"
+        )
         .round(4)
         .reset_index()
     )
@@ -1650,7 +1662,8 @@ def format_report(frame: pd.DataFrame, rankings: dict[str, pd.DataFrame]) -> str
                 "cross-dataset AP/F1 mean incomparable. AUROC and PG2/PB2 are less "
                 "prevalence-sensitive and stay.\n"
             )
-        lines.append(_with_mean_std_strings(_round(ranking, _DISPLAY_DIGITS)).to_markdown(index=False))
+        display_ranking = _with_mean_std_strings(_round(ranking, _DISPLAY_DIGITS))
+        lines.append(display_ranking.to_markdown(index=False))
         lines.append("")
 
         table = per_dataset(frame, regime)

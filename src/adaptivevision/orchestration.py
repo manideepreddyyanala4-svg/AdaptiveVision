@@ -1,5 +1,4 @@
-"""Orchestration: the state machine, pipeline, scheduler, and resilience
-around one inspection cycle.
+"""Orchestration: the state machine, pipeline, scheduler, and resilience for one inspection cycle.
 
 The station lifecycle is a finite state machine over
 :class:`~adaptivevision.common.StationState`. The pipeline drives one
@@ -28,8 +27,8 @@ from adaptivevision.common import (
     AnomalyResult,
     CameraDriver,
     FaultError,
-    Inspector,
     InspectionResult,
+    Inspector,
     MetrologyResult,
     PartialResult,
     RawFrame,

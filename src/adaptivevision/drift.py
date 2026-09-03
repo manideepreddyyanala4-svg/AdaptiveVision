@@ -280,7 +280,9 @@ class HealthCheck:
 
     def check(self) -> tuple[ComponentStatus, ...]:
         """Evaluate all registered probes and return their statuses."""
-        return tuple(ComponentStatus(name=name, healthy=probe()) for name, probe in self._probes.items())
+        return tuple(
+            ComponentStatus(name=name, healthy=probe()) for name, probe in self._probes.items()
+        )
 
     def is_healthy(self) -> bool:
         """Return ``True`` if every registered component is healthy."""

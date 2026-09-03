@@ -258,8 +258,7 @@ class AdvisoryRecord(Base):
 
 
 class SqliteResultRepository(ResultRepository):
-    """A :class:`~adaptivevision.common.ResultRepository` backed by the local
-    SQLite database.
+    """A :class:`~adaptivevision.common.ResultRepository` backed by the local SQLite database.
 
     Args:
         session_factory: The session factory to use for database access.
@@ -336,8 +335,7 @@ class SqliteResultRepository(ResultRepository):
 
 
 def _to_record(result: InspectionResult) -> InspectionRecord:
-    """Map a domain :class:`~adaptivevision.common.InspectionResult` to an
-    ORM record."""
+    """Map a domain :class:`~adaptivevision.common.InspectionResult` to an ORM record."""
     areas = [m.area_um2 for m in result.defect_measurements]
     return InspectionRecord(
         inspection_id=result.inspection_id,
@@ -358,14 +356,15 @@ def _to_record(result: InspectionResult) -> InspectionRecord:
         defect_count=len(result.defect_measurements),
         max_defect_area_um2=max(areas) if areas else None,
         # Largest defect first, per measure_defects()'s documented ordering.
-        defect_type=result.defect_measurements[0].morphology if result.defect_measurements else None,
+        defect_type=result.defect_measurements[0].morphology
+        if result.defect_measurements
+        else None,
         drift_status=result.drift_status,
     )
 
 
 def _from_record(record: InspectionRecord) -> InspectionResult:
-    """Map an ORM record back to a domain
-    :class:`~adaptivevision.common.InspectionResult`."""
+    """Map an ORM record back to a domain :class:`~adaptivevision.common.InspectionResult`."""
     return InspectionResult(
         inspection_id=record.inspection_id,
         part_id=record.part_id,
@@ -395,8 +394,7 @@ def _as_utc(value: datetime) -> datetime:
 
 
 class SqliteAdvisoryRepository(AdvisoryRepository):
-    """An :class:`~adaptivevision.common.AdvisoryRepository` backed by the
-    local SQLite database.
+    """An :class:`~adaptivevision.common.AdvisoryRepository` backed by the local SQLite database.
 
     Args:
         session_factory: The session factory to use for database access.
@@ -665,8 +663,7 @@ def serialize_traceability(result: InspectionResult) -> str:
 
 
 def build_mes_payload(result: InspectionResult) -> dict[str, Any]:
-    """Build a JSON-friendly MES (Manufacturing Execution System) event payload
-    for an inspection result (Milestone M21).
+    """Build a JSON MES (Manufacturing Execution System) event payload for a result (Milestone M21).
 
     There is no single universal MES event schema -- real integrations vary
     per vendor and site (SEMI E10/E30-style equipment events, proprietary

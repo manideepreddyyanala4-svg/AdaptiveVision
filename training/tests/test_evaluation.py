@@ -131,7 +131,7 @@ def test_aupimo_skips_images_with_no_defect() -> None:
     mask[0, 2:6, 2:6] = True
     # images 1, 2 have no defect at all
 
-    mean_score, per_image = compute_aupimo(maps, mask)
+    _, per_image = compute_aupimo(maps, mask)
     assert len(per_image) == 1  # only image 0 contributed
 
 

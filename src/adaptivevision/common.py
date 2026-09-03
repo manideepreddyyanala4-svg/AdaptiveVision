@@ -1,9 +1,9 @@
-"""Shared foundation: enums, errors, geometry, IDs, timing, value types,
-result shapes, and the abstraction seams every other module depends on.
+"""Shared foundation: enums, errors, geometry, IDs, timing, value types, result shapes, and seams.
 
-Everything here is either a pure value (no behavior beyond serialization) or
-an abstract seam (a boundary concrete adapters are injected behind at the
-composition root, see ``app.py``). Per frozen decisions 4 and 5, every value
+Every other module depends on these. Everything here is either a pure value
+(no behavior beyond serialization) or an abstract seam (a boundary concrete
+adapters are injected behind at the composition root, see ``app.py``). Per
+frozen decisions 4 and 5, every value
 object is a frozen dataclass with explicit ``to_dict``/``from_dict``
 serialization; :class:`InspectionResult` round-trips losslessly. Per frozen
 decision 1, every seam below is an ABC (not a ``Protocol``), giving explicit
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     Embedding = np.ndarray[Any, np.dtype[np.float32]]
 
 __all__ = [
+    "ROI",
     "AcquisitionError",
     "AdaptiveVisionError",
     "AdvisoryEngine",
@@ -75,7 +76,6 @@ __all__ = [
     "Point",
     "Pose",
     "PoseTuple",
-    "ROI",
     "RawFrame",
     "RecipeError",
     "RecipeStore",
@@ -879,8 +879,7 @@ class Defect:
 
 @dataclass(frozen=True, slots=True)
 class DefectMeasurement:
-    """A physically-measured defect region extracted from an anomaly heatmap
-    (Milestone M21).
+    """A physically-measured defect region extracted from an anomaly heatmap (Milestone M21).
 
     Produced by :func:`adaptivevision.metrology.measure_defects` from one
     connected region of a thresholded anomaly heatmap -- shape data, not a

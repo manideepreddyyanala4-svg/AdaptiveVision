@@ -290,7 +290,7 @@ def _compute_heatmap(
         ``(None, None, [])`` if the patch grid shape can't be recovered.
     """
     n_patches = patch_features.shape[0]
-    grid = int(round(n_patches**0.5))
+    grid = round(n_patches**0.5)
     if grid * grid != n_patches:
         return None, None, []
 

@@ -16,6 +16,7 @@ seam without changing anything downstream.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import queue
 import threading
@@ -86,8 +87,7 @@ def build_frame(
 
 
 class NullCameraDriver(CameraDriver):
-    """A synthetic :class:`~adaptivevision.common.CameraDriver` used when no
-    real camera is configured.
+    """A synthetic :class:`~adaptivevision.common.CameraDriver` with no real camera configured.
 
     Args:
         config: The camera configuration describing the synthetic frame size.
@@ -139,8 +139,7 @@ class NullCameraDriver(CameraDriver):
 
 
 class ThreadedFrameBuffer:
-    """Runs a :class:`~adaptivevision.common.CameraDriver` on a dedicated
-    background thread (Milestone M21).
+    """Runs a :class:`~adaptivevision.common.CameraDriver` on a background thread (Milestone M21).
 
     :class:`~adaptivevision.common.CameraDriver` is deliberately a blocking,
     single-threaded seam ("a single acquisition thread owns the driver") --
@@ -245,7 +244,7 @@ class ThreadedFrameBuffer:
         while not self._stop_event.is_set():
             try:
                 frame = self._driver.capture()
-            except Exception as exc:  # noqa: BLE001 -- see class docstring
+            except Exception as exc:
                 with self._error_lock:
                     self._last_error = exc
             else:
@@ -260,10 +259,9 @@ class ThreadedFrameBuffer:
                 self._queue.put_nowait(frame)
                 return
             except queue.Full:
-                try:
+                # a concurrent reader may drain it first; suppress and retry the put either way
+                with contextlib.suppress(queue.Empty):
                     self._queue.get_nowait()
-                except queue.Empty:
-                    pass  # a concurrent reader already drained it; retry the put
 
 
 # =============================================================================

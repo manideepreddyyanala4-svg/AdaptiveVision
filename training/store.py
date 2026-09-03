@@ -1,4 +1,4 @@
-"""Persistence for the sweep: the SQLite results row, raw-prediction archives, and model checkpoints.
+"""Persistence for the sweep: the results row, prediction archives, and model checkpoints.
 
 Three flavors of "save the sweep's output," kept together because they're
 the same concern at different granularities:
@@ -275,7 +275,9 @@ def session_scope(session_factory: sessionmaker[Session]) -> Iterator[Session]:
         session.close()
 
 
-def start_run(session_factory: sessionmaker[Session], run_id: str, identity: dict[str, Any]) -> None:
+def start_run(
+    session_factory: sessionmaker[Session], run_id: str, identity: dict[str, Any]
+) -> None:
     """Insert a placeholder row before a fit starts.
 
     A row left in this state (``status="running"``) on the next launch is a
@@ -320,7 +322,9 @@ def finish_run(session_factory: sessionmaker[Session], run_id: str, row: dict[st
         existing.finished_at = datetime.now(UTC)
 
 
-def update_columns(session_factory: sessionmaker[Session], run_id: str, columns: dict[str, Any]) -> bool:
+def update_columns(
+    session_factory: sessionmaker[Session], run_id: str, columns: dict[str, Any]
+) -> bool:
     """Backfill columns onto an existing row, e.g. cost metrics or new-metric columns.
 
     Used by the deployment-cost pass and the metrics-backfill pass, both of

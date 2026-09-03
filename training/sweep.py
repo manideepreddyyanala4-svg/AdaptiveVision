@@ -307,7 +307,11 @@ def build_run_plan(
                     for seed in seeds:
                         jobs.append(
                             FitJob(
-                                "multiclass", spec, family_configs, seed, severstal_target_prevalence
+                                "multiclass",
+                                spec,
+                                family_configs,
+                                seed,
+                                severstal_target_prevalence,
                             )
                         )
             elif regime == "fewshot":
@@ -455,7 +459,9 @@ def evaluate_scorer(
             row.update(pixel.as_dict())
 
     store.save_artifact(
-        store.artifact_path(context.artifact_root, regime, spec.name, config.key, context.options.seed),
+        store.artifact_path(
+            context.artifact_root, regime, spec.name, config.key, context.options.seed
+        ),
         scores,
         labels,
         [str(path) for path in test_paths],
@@ -627,7 +633,8 @@ def run_oneclass(
         scorer = spec.fit(config, train_paths, test_split, context.options)
         fit_seconds = time.perf_counter() - fit_start
         store.save_checkpoint(
-            scorer, store.checkpoint_path(context.checkpoint_root, "oneclass", spec.name, config.key)
+            scorer,
+            store.checkpoint_path(context.checkpoint_root, "oneclass", spec.name, config.key),
         )
         extra = {
             "n_fit": len(train_paths),
@@ -744,7 +751,9 @@ def run_fewshot(
             # so it alone disambiguates the checkpoint path across shots.
             store.save_checkpoint(
                 scorer,
-                store.checkpoint_path(context.checkpoint_root, f"fewshot{shot}", spec.name, config.key),
+                store.checkpoint_path(
+                    context.checkpoint_root, f"fewshot{shot}", spec.name, config.key
+                ),
             )
             yield evaluate_scorer(
                 scorer,
@@ -911,9 +920,7 @@ def _job_matches_only(job: FitJob, only: dict[str, set[str]]) -> bool:
         configs = job.target if isinstance(job.target, list) else [job.target]
         if not any(c.dataset in only["dataset"] or c.key in only["dataset"] for c in configs):
             return False
-    if "regime" in only and job.regime not in only["regime"]:
-        return False
-    return True
+    return "regime" not in only or job.regime in only["regime"]
 
 
 def seed_everything(seed: int) -> None:
@@ -944,7 +951,10 @@ def _describe(row: dict[str, Any]) -> str:
 def job_label(job: FitJob) -> str:
     """Human-readable name for a unit of work."""
     if job.regime == "multiclass":
-        return f"{job.spec.name} @ {job.target[0].dataset} (x{len(job.target)} categories) seed={job.seed}"
+        return (
+            f"{job.spec.name} @ {job.target[0].dataset} "
+            f"(x{len(job.target)} categories) seed={job.seed}"
+        )
     return f"{job.spec.name} @ {job.target.key} seed={job.seed}"
 
 
@@ -982,11 +992,15 @@ def _estimate_seconds(session_factory: Any, pending: list[FitJob]) -> float:
     with session_scope(session_factory) as session:
         rows = session.scalars(
             sa_select(RunRow).where(
-                RunRow.status == "ok", RunRow.fit_seconds.is_not(None), RunRow.score_seconds.is_not(None)
+                RunRow.status == "ok",
+                RunRow.fit_seconds.is_not(None),
+                RunRow.score_seconds.is_not(None),
             )
         )
         for row in rows:
-            history.setdefault(row.method, []).append((row.fit_seconds or 0) + (row.score_seconds or 0))
+            history.setdefault(row.method, []).append(
+                (row.fit_seconds or 0) + (row.score_seconds or 0)
+            )
 
     global_history = [seconds for seconds_list in history.values() for seconds in seconds_list]
     global_average = sum(global_history) / len(global_history) if global_history else None
@@ -998,10 +1012,10 @@ def _estimate_seconds(session_factory: Any, pending: list[FitJob]) -> float:
             total += sum(durations) / len(durations)
         elif global_average is not None:
             total += global_average
+        elif job.spec.trainable:
+            total += _FALLBACK_SECONDS_TRAINABLE
         else:
-            total += (
-                _FALLBACK_SECONDS_TRAINABLE if job.spec.trainable else _FALLBACK_SECONDS_TRAINING_FREE
-            )
+            total += _FALLBACK_SECONDS_TRAINING_FREE
     return total
 
 

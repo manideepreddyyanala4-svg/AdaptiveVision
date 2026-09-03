@@ -48,8 +48,7 @@ class ModbusClient(Protocol):
 
 
 class ModbusTcpTransport(PLCTransport):
-    """A :class:`~adaptivevision.common.PLCTransport` backed by a Modbus TCP
-    client.
+    """A :class:`~adaptivevision.common.PLCTransport` backed by a Modbus TCP client.
 
     Args:
         client: The low-level Modbus client to delegate to.
@@ -132,8 +131,7 @@ class ModbusTcpTransport(PLCTransport):
             raise CommsError(f"PLC write_registers failed: {exc}") from exc
 
     def _require_connected(self) -> None:
-        """Raise :class:`~adaptivevision.common.CommsError` when the transport
-        is not connected."""
+        """Raise :class:`~adaptivevision.common.CommsError` when the transport is not connected."""
         if not self._connected:
             raise CommsError("PLC transport is not connected")
 
@@ -160,8 +158,7 @@ class MqttClient(Protocol):
 
 
 class MqttPublisher(MessagePublisher):
-    """A :class:`~adaptivevision.common.MessagePublisher` backed by an MQTT
-    client.
+    """A :class:`~adaptivevision.common.MessagePublisher` backed by an MQTT client.
 
     Args:
         client: The low-level MQTT client to delegate to.
@@ -222,7 +219,6 @@ class MqttPublisher(MessagePublisher):
             raise CommsError(f"MQTT publish failed: {exc}") from exc
 
     def _require_connected(self) -> None:
-        """Raise :class:`~adaptivevision.common.CommsError` when the publisher
-        is not connected."""
+        """Raise :class:`~adaptivevision.common.CommsError` when the publisher is not connected."""
         if not self._connected:
             raise CommsError("MQTT publisher is not connected")

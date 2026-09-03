@@ -37,7 +37,9 @@ def _method(name: str, trainable: bool = False, allowed_regimes=None) -> MethodS
 
 
 def _config(dataset: str, category: str | None) -> DatasetConfig:
-    return DatasetConfig(dataset=dataset, category=category, height=256, width=256, position_aligned=True)
+    return DatasetConfig(
+        dataset=dataset, category=category, height=256, width=256, position_aligned=True
+    )
 
 
 BOTTLE = _config("mvtec", "bottle")
@@ -130,7 +132,11 @@ def test_severstal_target_prevalence_changes_run_id_only_for_severstal():
 
     jobs_default = build_run_plan([patchcore], [BOTTLE, severstal], ["oneclass"], seeds=(1,))
     jobs_target = build_run_plan(
-        [patchcore], [BOTTLE, severstal], ["oneclass"], seeds=(1,), severstal_target_prevalence=0.275
+        [patchcore],
+        [BOTTLE, severstal],
+        ["oneclass"],
+        seeds=(1,),
+        severstal_target_prevalence=0.275,
     )
 
     def run_id_for(jobs, config_key):

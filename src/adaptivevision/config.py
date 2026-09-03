@@ -1,5 +1,4 @@
-"""Settings: station configuration, AOI calibration/drift/KPI settings, and
-product recipes.
+"""Settings: station configuration, AOI calibration/drift/KPI settings, and product recipes.
 
 Configuration is a cross-cutting concern read once at startup and injected
 into whatever needs it. Three related sources, each with a different shape
@@ -437,7 +436,7 @@ def load_aoi_config(path: str | Path | None = None) -> AoiConfig:
     # apart since both read back as None, but they mean different things --
     # explicit null means "use Otsu, not a percentile," while an absent key
     # means "use whatever this field's own default is."
-    if "threshold_percentile" in metrology_raw:
+    if "threshold_percentile" in metrology_raw:  # noqa: SIM401 -- explicit on purpose, see comment above
         percentile = metrology_raw["threshold_percentile"]
     else:
         percentile = default_metrology.threshold_percentile
@@ -623,8 +622,7 @@ def validate_inspectors(
 
 
 class JsonRecipeStore(RecipeStore[Recipe]):
-    """A :class:`~adaptivevision.common.RecipeStore` backed by JSON files on
-    disk.
+    """A :class:`~adaptivevision.common.RecipeStore` backed by JSON files on disk.
 
     Each recipe is stored as ``<recipe_id>.json`` in the configured directory.
     The store is not thread-safe; the orchestration layer serializes access.

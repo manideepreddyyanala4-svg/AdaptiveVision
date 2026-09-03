@@ -198,8 +198,7 @@ _SYSTEM_PROMPT = (
 
 
 class OllamaAdvisoryEngine(AdvisoryEngine):
-    """An :class:`~adaptivevision.common.AdvisoryEngine` backed by a local
-    Ollama LLM.
+    """An :class:`~adaptivevision.common.AdvisoryEngine` backed by a local Ollama LLM.
 
     Never raises: a missing ``ollama`` package, an unreachable server, a
     timeout, or a malformed response all fall back to a deterministic report

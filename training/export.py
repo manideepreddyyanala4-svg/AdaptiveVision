@@ -1,4 +1,6 @@
-"""Everything that turns a fitted method into a production artifact: ONNX export, the deployment bridge, quantization, and the retrieval index.
+"""Everything that turns a fitted method into a production artifact.
+
+ONNX export, the deployment bridge, quantization, and the retrieval index.
 
 Four stages, all downstream of a fitted (or completed-sweep) method -- none
 of them run the sweep itself:
@@ -24,7 +26,10 @@ Usage:
     python -m training.export export --from-leaderboard
     python -m training.export deployment-export
     python -m training.export quantize --method patchcore_dinov2_vitb14 --datasets mvtec visa
-    python -m training.export retrieval-index --onnx models/patchcore_dinov2_vitb14__mvtec_bottle.onnx --dataset mvtec/bottle --output training/benchmark_results/retrieval/mvtec_bottle.faiss
+    python -m training.export retrieval-index \
+        --onnx models/patchcore_dinov2_vitb14__mvtec_bottle.onnx \
+        --dataset mvtec/bottle \
+        --output training/benchmark_results/retrieval/mvtec_bottle.faiss
 """
 
 from __future__ import annotations
@@ -287,7 +292,10 @@ def _leaderboard_targets(winners_csv: Path) -> list[tuple[str, str, float | None
         SystemExit: If the winners file has not been generated yet.
     """
     if not winners_csv.exists():
-        msg = f"No winners table at {winners_csv}. Run `python -m training.evaluate leaderboard` first."
+        msg = (
+            f"No winners table at {winners_csv}. "
+            "Run `python -m training.evaluate leaderboard` first."
+        )
         raise SystemExit(msg)
     frame = pd.read_csv(winners_csv)
     has_auroc = "auroc" in frame.columns
@@ -388,7 +396,9 @@ _PROFILE_FIELDS: dict[str, str] = {
 }
 
 
-def build_deployment_profiles(frame: pd.DataFrame, *, benchmark_version: str) -> list[dict[str, Any]]:
+def build_deployment_profiles(
+    frame: pd.DataFrame, *, benchmark_version: str
+) -> list[dict[str, Any]]:
     """Aggregate seeds and shape one DeploymentProfile dict per model config.
 
     Args:
