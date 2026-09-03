@@ -7,9 +7,15 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from adaptivevision.api import create_app
-from adaptivevision.common import Severity, Verdict
-from adaptivevision.common import AdvisoryRepository, ResultRepository
-from adaptivevision.common import AdvisoryReport, InspectionEvidence, InspectionResult
+from adaptivevision.common import (
+    AdvisoryReport,
+    AdvisoryRepository,
+    InspectionEvidence,
+    InspectionResult,
+    ResultRepository,
+    Severity,
+    Verdict,
+)
 from adaptivevision.deployment import DeploymentProfile
 from adaptivevision.drift import HealthCheck, MetricsRegistry
 

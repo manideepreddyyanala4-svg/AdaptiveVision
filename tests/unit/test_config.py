@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.config`."""
+"""Unit tests for config.py: station settings, AOI settings, recipes."""
 
 from __future__ import annotations
 
@@ -7,14 +7,34 @@ from pathlib import Path
 
 import pytest
 
-from adaptivevision.common import CameraKind, ExecutionProvider
+from adaptivevision.common import (
+    ROI,
+    CameraKind,
+    ExecutionProvider,
+    MeasurementSpec,
+    RecipeError,
+    Severity,
+    Tolerance,
+)
 from adaptivevision.config import (
+    AoiConfig,
     CameraConfig,
+    DecisionPolicy,
+    DriftSettings,
+    JsonRecipeStore,
+    KpiSettings,
+    MetrologySettings,
+    Recipe,
     StationConfig,
+    load_aoi_config,
     load_config,
     load_env_file,
+    validate_inspectors,
 )
 
+# -----------------------------------------------------------------------------
+# Station configuration and env loading
+# -----------------------------------------------------------------------------
 
 def test_station_config_defaults() -> None:
     config = StationConfig(station_id="s1", log_level="INFO")
@@ -203,3 +223,209 @@ def test_load_config_tolerates_missing_dot_env_in_cwd(
     monkeypatch.chdir(tmp_path)
     config = load_config(environ={})
     assert config.station_id == "station-01"
+
+
+# -----------------------------------------------------------------------------
+# AOI settings (metrology/drift/KPI)
+# -----------------------------------------------------------------------------
+
+def test_load_aoi_config_missing_file_returns_defaults(tmp_path: Path) -> None:
+    config = load_aoi_config(tmp_path / "does-not-exist.yaml")
+    assert config == AoiConfig()
+    assert config.metrology == MetrologySettings()
+    assert config.drift == DriftSettings()
+    assert config.kpi == KpiSettings()
+
+
+def test_load_aoi_config_empty_file_returns_defaults(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text("", encoding="utf-8")
+    assert load_aoi_config(path) == AoiConfig()
+
+
+def test_load_aoi_config_reads_all_sections(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(
+        """
+metrology:
+  pixel_to_micron: 2.5
+  min_area_px2: 9
+  threshold_percentile: 95.0
+drift:
+  window_size: 50
+  p_value_threshold: 0.05
+kpi:
+  target_escape_rate: 0.002
+""",
+        encoding="utf-8",
+    )
+
+    config = load_aoi_config(path)
+
+    assert config.metrology == MetrologySettings(
+        pixel_to_micron=2.5, min_area_px2=9, threshold_percentile=95.0
+    )
+    assert config.drift == DriftSettings(window_size=50, p_value_threshold=0.05)
+    assert config.kpi == KpiSettings(target_escape_rate=0.002)
+
+
+def test_load_aoi_config_partial_file_fills_in_defaults(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text("metrology:\n  pixel_to_micron: 3.0\n", encoding="utf-8")
+
+    config = load_aoi_config(path)
+
+    assert config.metrology.pixel_to_micron == 3.0
+    assert config.metrology.min_area_px2 == MetrologySettings().min_area_px2
+    # Regression check: an absent threshold_percentile key must fall back to
+    # the field's own default, not get silently hard-coded to None (a real
+    # bug this test caught when that default changed from None to 99.5).
+    assert config.metrology.threshold_percentile == MetrologySettings().threshold_percentile
+    assert config.drift == DriftSettings()
+    assert config.kpi == KpiSettings()
+
+
+def test_load_aoi_config_null_threshold_percentile_stays_none(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text("metrology:\n  threshold_percentile: null\n", encoding="utf-8")
+
+    config = load_aoi_config(path)
+
+    assert config.metrology.threshold_percentile is None
+
+
+def test_load_aoi_config_default_path_reads_real_repo_config() -> None:
+    # configs/config.yaml ships in the repo; this is the one test that
+    # exercises the real, no-argument default path end to end.
+    config = load_aoi_config()
+    assert config.metrology.pixel_to_micron > 0
+    assert 0.0 < config.kpi.target_escape_rate < 1.0
+
+
+# -----------------------------------------------------------------------------
+# Recipe model and JSON store
+# -----------------------------------------------------------------------------
+
+def _spec(name: str = "width") -> MeasurementSpec:
+    return MeasurementSpec(
+        name=name,
+        nominal=10.0,
+        tolerance=Tolerance(minus=0.1, plus=0.1),
+        unit="mm",
+    )
+
+
+def _recipe() -> Recipe:
+    return Recipe(
+        recipe_id="widget-a",
+        version="1.0",
+        rois=(ROI(label="pad", x=0.0, y=0.0, width=4.0, height=4.0),),
+        measurement_specs=(_spec(),),
+        inspectors=("metrology",),
+        decision=DecisionPolicy(anomaly_threshold=0.7, max_defects=2),
+        product_name="Widget A",
+    )
+
+
+def test_recipe_roundtrip() -> None:
+    recipe = _recipe()
+    assert Recipe.from_dict(recipe.to_dict()) == recipe
+
+
+def test_recipe_rejects_empty_id() -> None:
+    with pytest.raises(RecipeError, match="recipe_id"):
+        Recipe(recipe_id="", version="1.0")
+
+
+def test_recipe_rejects_empty_version() -> None:
+    with pytest.raises(RecipeError, match="version"):
+        Recipe(recipe_id="r", version="")
+
+
+def test_recipe_is_frozen() -> None:
+    recipe = _recipe()
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        recipe.version = "2.0"  # type: ignore[misc]
+
+
+def test_decision_policy_defaults() -> None:
+    policy = DecisionPolicy()
+    assert policy.anomaly_threshold == 0.5
+    assert policy.review_on_anomaly is False
+    assert policy.max_defects == 0
+    assert policy.fail_severity is Severity.MAJOR
+
+
+def test_decision_policy_validation() -> None:
+    with pytest.raises(RecipeError, match="anomaly_threshold"):
+        DecisionPolicy(anomaly_threshold=1.5)
+    with pytest.raises(RecipeError, match="max_defects"):
+        DecisionPolicy(max_defects=-1)
+
+
+def test_decision_policy_roundtrip() -> None:
+    policy = DecisionPolicy(
+        anomaly_threshold=0.8, review_on_anomaly=True, max_defects=3
+    )
+    assert DecisionPolicy.from_dict(policy.to_dict()) == policy
+
+
+def test_validate_inspectors_deduplicates_and_preserves_order() -> None:
+    registry = frozenset({"metrology", "anomaly"})
+    assert validate_inspectors(("metrology", "anomaly", "metrology"), registry) == (
+        "metrology",
+        "anomaly",
+    )
+
+
+def test_validate_inspectors_rejects_unknown() -> None:
+    with pytest.raises(RecipeError, match="Unknown inspector"):
+        validate_inspectors(("metrology", "bogus"), frozenset({"metrology"}))
+
+
+def test_json_store_save_load_roundtrip(tmp_path: Path) -> None:
+    store = JsonRecipeStore(tmp_path)
+    recipe = _recipe()
+    store.save(recipe)
+    assert store.load("widget-a") == recipe
+
+
+def test_json_store_list_ids(tmp_path: Path) -> None:
+    store = JsonRecipeStore(tmp_path)
+    store.save(_recipe())
+    store.save(Recipe(recipe_id="widget-b", version="1.0"))
+    assert store.list_ids() == ("widget-a", "widget-b")
+
+
+def test_json_store_list_ids_empty_when_missing_dir(tmp_path: Path) -> None:
+    store = JsonRecipeStore(tmp_path / "nope")
+    assert store.list_ids() == ()
+
+
+def test_json_store_load_missing_raises(tmp_path: Path) -> None:
+    store = JsonRecipeStore(tmp_path)
+    with pytest.raises(RecipeError, match="not found"):
+        store.load("missing")
+
+
+def test_json_store_load_invalid_json_raises(tmp_path: Path) -> None:
+    store = JsonRecipeStore(tmp_path)
+    (tmp_path / "bad.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(RecipeError, match="Failed to read"):
+        store.load("bad")
+
+
+def test_json_store_load_id_mismatch_raises(tmp_path: Path) -> None:
+    store = JsonRecipeStore(tmp_path)
+    (tmp_path / "file-a.json").write_text(
+        '{"recipe_id": "file-b", "version": "1.0"}',
+        encoding="utf-8",
+    )
+    with pytest.raises(RecipeError, match="mismatch"):
+        store.load("file-a")
+
+
+def test_json_store_is_recipe_store(tmp_path: Path) -> None:
+    from adaptivevision.common import RecipeStore
+
+    assert isinstance(JsonRecipeStore(tmp_path), RecipeStore)

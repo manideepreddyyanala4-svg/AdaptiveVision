@@ -10,8 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from adaptivevision.camera import NullCameraDriver
-from adaptivevision.common import CameraKind, Verdict
-from adaptivevision.common import InspectionResult
+from adaptivevision.common import CameraKind, InspectionResult, Verdict
 from adaptivevision.config import CameraConfig
 from adaptivevision.orchestration import (
     FailureHandler,

@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from adaptivevision.common import DefectClass, Severity, Verdict
-from adaptivevision.common import AnomalyResult, Defect, MetrologyResult
-from adaptivevision.decision import DecisionPolicy
+from adaptivevision.common import (
+    AnomalyResult,
+    Defect,
+    DefectClass,
+    MetrologyResult,
+    Severity,
+    Verdict,
+)
 from adaptivevision.config import DecisionPolicy as RecipeDecisionPolicy
 from adaptivevision.config import Recipe
+from adaptivevision.decision import DecisionPolicy
 
 
 def _defect(severity: Severity) -> Defect:

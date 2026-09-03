@@ -13,38 +13,36 @@ from datetime import UTC, datetime
 
 import pytest
 
-from adaptivevision.common import DefectClass, Severity, Verdict
-from adaptivevision.common import AdaptiveVisionError
 from adaptivevision.common import (
+    ROI,
+    AdaptiveVisionError,
     AdvisoryReport,
     Defect,
+    DefectClass,
     DefectMeasurement,
     InspectionEvidence,
     InspectionResult,
+    Measurement,
+    Severity,
+    Verdict,
 )
-from adaptivevision.common import ROI, Measurement
 from adaptivevision.storage import (
-    build_engine,
-    init_db,
-    make_session_factory,
-    open_database,
-    session_scope,
-)
-from adaptivevision.storage import ImageStoreError, LocalImageStore
-from adaptivevision.storage import (
+    ImageStoreError,
+    InspectionRecord,
+    LocalImageStore,
     PersistenceHandler,
-    make_persistence_handler,
-)
-from adaptivevision.storage import InspectionRecord
-from adaptivevision.storage import (
     SqliteAdvisoryRepository,
     SqliteResultRepository,
-)
-from adaptivevision.storage import (
+    build_engine,
     build_mes_payload,
     build_traceability_record,
+    init_db,
+    make_persistence_handler,
+    make_session_factory,
+    open_database,
     serialize_mes_payload,
     serialize_traceability,
+    session_scope,
 )
 
 

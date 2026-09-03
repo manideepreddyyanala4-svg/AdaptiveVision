@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from adaptivevision.camera import build_frame
 from adaptivevision.app import (
     build_anomaly_detector,
     build_decision_policy,
@@ -16,13 +15,11 @@ from adaptivevision.app import (
     build_recipe,
     build_station,
 )
-from adaptivevision.common import ExecutionProvider, Verdict
-from adaptivevision.common import RectifiedFrame
-from adaptivevision.config import StationConfig
-from adaptivevision.metrology import ThresholdAnomalyDetector
-from adaptivevision.config import Recipe
+from adaptivevision.camera import build_frame
+from adaptivevision.common import ExecutionProvider, RectifiedFrame, Verdict
 from adaptivevision.config import DecisionPolicy as RecipeDecisionPolicy
-from adaptivevision.config import JsonRecipeStore
+from adaptivevision.config import JsonRecipeStore, Recipe, StationConfig
+from adaptivevision.metrology import ThresholdAnomalyDetector
 
 _REAL_MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
 _FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
@@ -72,7 +69,10 @@ def test_build_anomaly_detector_returns_none_without_model_path() -> None:
 
 
 def test_build_anomaly_detector_loads_real_model_and_uses_recipe_threshold() -> None:
-    config = _config(MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
+    config = _config(
+        MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+        MODEL_DIR=str(_REAL_MODEL_DIR),
+    )
     recipe = Recipe(
         recipe_id="r",
         version="1",
@@ -85,7 +85,10 @@ def test_build_anomaly_detector_loads_real_model_and_uses_recipe_threshold() -> 
 
 
 def test_build_anomaly_detector_review_on_anomaly_uses_minor_severity() -> None:
-    config = _config(MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
+    config = _config(
+        MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+        MODEL_DIR=str(_REAL_MODEL_DIR),
+    )
     recipe = Recipe(
         recipe_id="r",
         version="1",
@@ -121,7 +124,10 @@ def test_build_anomaly_detector_non_cpu_provider_falls_back_to_cpu() -> None:
         station_id="s1",
         log_level="INFO",
         execution_provider=ExecutionProvider.OPENVINO,
-        extra={"MODEL_PATH": "patchcore_dinov2_vitb14__mvtec_bottle.onnx", "MODEL_DIR": str(_REAL_MODEL_DIR)},
+        extra={
+            "MODEL_PATH": "patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+            "MODEL_DIR": str(_REAL_MODEL_DIR),
+        },
     )
 
     detector = build_anomaly_detector(config, None)
@@ -130,7 +136,10 @@ def test_build_anomaly_detector_non_cpu_provider_falls_back_to_cpu() -> None:
 
 
 def test_build_anomaly_detector_default_threshold_without_recipe() -> None:
-    config = _config(MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx", MODEL_DIR=str(_REAL_MODEL_DIR))
+    config = _config(
+        MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+        MODEL_DIR=str(_REAL_MODEL_DIR),
+    )
 
     detector = build_anomaly_detector(config, None)
 

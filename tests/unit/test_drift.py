@@ -1,4 +1,4 @@
-"""Unit tests for the M21 sensor/illumination drift detector."""
+"""Unit tests for drift.py: sensor drift, health checks, metrics, Prometheus, SPC."""
 
 from __future__ import annotations
 
@@ -10,9 +10,16 @@ from adaptivevision.drift import (
     NOMINAL,
     SENSOR_DRIFT_ALERT,
     DriftDetector,
+    HealthCheck,
+    MetricsRegistry,
+    control_chart,
     ks_two_sample,
+    render_metrics,
 )
 
+# -----------------------------------------------------------------------------
+# Sensor/illumination drift detection
+# -----------------------------------------------------------------------------
 
 def test_ks_two_sample_identical_distributions_has_zero_statistic() -> None:
     sample = [0.1, 0.2, 0.3, 0.4, 0.5]
@@ -140,3 +147,144 @@ def test_drift_report_to_dict_round_trips_fields() -> None:
     assert payload["status"] in (NOMINAL, SENSOR_DRIFT_ALERT)
     assert payload["window_size"] == 2
     assert payload["baseline_size"] == 4
+
+
+# -----------------------------------------------------------------------------
+# Health checks, metrics registry, SPC
+# -----------------------------------------------------------------------------
+
+def test_counter_increment_and_read() -> None:
+    registry = MetricsRegistry()
+    registry.increment("inspections")
+    registry.increment("inspections", 4)
+    assert registry.counter("inspections") == 5
+
+
+def test_gauge_set_and_read() -> None:
+    registry = MetricsRegistry()
+    assert registry.gauge("temperature") is None
+    registry.set_gauge("temperature", 42.5)
+    assert registry.gauge("temperature") == 42.5
+
+
+def test_histogram_statistics() -> None:
+    registry = MetricsRegistry()
+    for value in (1.0, 2.0, 3.0, 4.0):
+        registry.observe("cycle_time", value)
+    histogram = registry.histogram("cycle_time")
+    assert histogram.count == 4
+    assert histogram.min == 1.0
+    assert histogram.max == 4.0
+    assert histogram.mean == 2.5
+    assert histogram.stddev == pytest.approx(1.118, abs=1e-3)
+
+
+def test_empty_histogram() -> None:
+    registry = MetricsRegistry()
+    histogram = registry.histogram("missing")
+    assert histogram.count == 0
+    assert histogram.mean == 0.0
+
+
+def test_snapshot_shape() -> None:
+    registry = MetricsRegistry()
+    registry.increment("pass")
+    registry.set_gauge("temp", 1.0)
+    registry.observe("cycle", 2.0)
+    snapshot = registry.snapshot()
+    assert snapshot["counters"] == {"pass": 1}
+    assert snapshot["gauges"] == {"temp": 1.0}
+    assert snapshot["histograms"]["cycle"]["count"] == 1
+
+
+def test_control_chart_detects_out_of_control() -> None:
+    samples = [10.0] * 19 + [30.0]
+    chart = control_chart(samples)
+    assert chart.mean == pytest.approx(11.0, abs=0.01)
+    assert chart.out_of_control == (19,)
+
+
+def test_control_chart_empty() -> None:
+    chart = control_chart([])
+    assert chart.mean == 0.0
+    assert chart.out_of_control == ()
+
+
+def test_control_chart_single_sample() -> None:
+    chart = control_chart([5.0])
+    assert chart.mean == 5.0
+    assert chart.stddev == 0.0
+    assert chart.out_of_control == ()
+
+
+def test_health_check_all_healthy() -> None:
+    health = HealthCheck()
+    health.register("camera", lambda: True)
+    health.register("plc", lambda: True)
+    assert health.is_healthy()
+    statuses = health.check()
+    assert all(status.healthy for status in statuses)
+
+
+def test_health_check_reports_unhealthy() -> None:
+    health = HealthCheck()
+    health.register("camera", lambda: True)
+    health.register("plc", lambda: False)
+    assert not health.is_healthy()
+    statuses = {status.name: status.healthy for status in health.check()}
+    assert statuses == {"camera": True, "plc": False}
+
+
+# -----------------------------------------------------------------------------
+# Prometheus text exposition
+# -----------------------------------------------------------------------------
+
+def test_render_counter() -> None:
+    registry = MetricsRegistry()
+    registry.increment("inspections", 3)
+    payload = render_metrics(registry)
+    assert "# TYPE inspections counter" in payload
+    assert "inspections_total 3" in payload
+
+
+def test_render_gauge() -> None:
+    registry = MetricsRegistry()
+    registry.set_gauge("temperature", 42.5)
+    payload = render_metrics(registry)
+    assert "# TYPE temperature gauge" in payload
+    assert "temperature 42.5" in payload
+
+
+def test_render_histogram() -> None:
+    registry = MetricsRegistry()
+    for value in (1.0, 3.0):
+        registry.observe("cycle_time", value)
+    payload = render_metrics(registry)
+    assert "# TYPE cycle_time summary" in payload
+    assert "cycle_time_count 2" in payload
+    assert "cycle_time_sum 4" in payload
+    assert "cycle_time_mean 2" in payload
+    assert "cycle_time_min 1" in payload
+    assert "cycle_time_max 3" in payload
+
+
+def test_render_empty_registry() -> None:
+    payload = render_metrics(MetricsRegistry())
+    assert payload == ""
+
+
+def test_render_sanitizes_metric_names() -> None:
+    registry = MetricsRegistry()
+    registry.increment("pass count")
+    payload = render_metrics(registry)
+    assert "# TYPE passcount counter" in payload
+    assert "passcount_total 1" in payload
+    assert "pass_count_total" not in payload
+
+
+def test_render_integer_gauge_without_decimal() -> None:
+    registry = MetricsRegistry()
+
+    registry.set_gauge("temperature", 42.0)
+    payload = render_metrics(registry)
+    assert "temperature 42" in payload

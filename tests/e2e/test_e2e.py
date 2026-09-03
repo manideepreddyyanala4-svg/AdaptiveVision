@@ -1,35 +1,64 @@
-"""Real-image proof that the wired M9/M10 pipeline gives correct verdicts.
-
-``tests/e2e/test_run_station.py`` proves the walking skeleton boots cleanly
-with *no* model configured. This test proves the opposite half of the story:
-with a real ONNX model and a real camera frame, the pipeline built by
-``app.app.build_station``'s helpers (``build_anomaly_detector``,
-``build_decision_policy``) actually distinguishes a good part from a
-defective one -- "picture in, correct yes/no out" end-to-end, not just "the
-plumbing doesn't crash."
-
-Skipped when the MVTec bottle category or the benchmark-exported ONNX model
-aren't present locally (both are produced by ``training/``, not part of the
-repo itself, and this machine-specific data won't exist in every checkout or
-in CI).
-"""
+"""End-to-end tests: walking-skeleton boot/run with no model, and a real
+ONNX inference pipeline against a real image."""
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import cv2
 import pytest
 
-from adaptivevision.camera import build_frame
-from adaptivevision.common import ExecutionProvider, Verdict
-from adaptivevision.common import CameraDriver
-from adaptivevision.common import RawFrame
+from adaptivevision.camera import build_frame, resize_to
+from adaptivevision.common import CameraDriver, ExecutionProvider, RawFrame, Verdict
 from adaptivevision.decision import DecisionPolicy
 from adaptivevision.engine import OnnxInferenceEngine
 from adaptivevision.metrology import ThresholdAnomalyDetector
 from adaptivevision.orchestration import InspectionPipeline
-from adaptivevision.camera import resize_to
+
+# -----------------------------------------------------------------------------
+# Boot entrypoint with no model configured (scripts/run_station.py)
+# -----------------------------------------------------------------------------
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = PROJECT_ROOT / "scripts" / "run_station.py"
+
+
+def test_run_station_exits_cleanly_and_emits_boot_line(tmp_path: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    payloads = [json.loads(line) for line in lines]
+
+    booted = next(p for p in payloads if p["message"] == "AdaptiveVision station booted")
+    assert booted["level"] == "INFO"
+    assert booted["correlation_id"].startswith("boot-")
+    assert booted["state"] == "idle"
+    assert booted["milestone"] == "M3"
+    assert booted["station_id"] == "station-01"
+
+    inspection = next(p for p in payloads if p["message"] == "Inspection complete")
+    assert inspection["part_id"] == "demo-part-001"
+    assert inspection["verdict"] == "pass"
+
+    stopped = next(p for p in payloads if p["message"] == "AdaptiveVision station stopped")
+    assert stopped["state"] == "shutdown"
+    assert stopped["milestone"] == "M3"
+
+
+# -----------------------------------------------------------------------------
+# Real model, real image, correct verdict
+# -----------------------------------------------------------------------------
 
 _DATA_ROOT = Path("/home/tonyai/Documents/adaptivevision_M1 (2)/adaptivevision_M1")
 _MODEL_PATH = (

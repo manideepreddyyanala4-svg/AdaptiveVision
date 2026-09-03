@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.orchestration` and the composition root."""
+"""Unit tests for orchestration.py: state machine, pipeline, scheduler, resilience."""
 
 from __future__ import annotations
 
@@ -6,35 +6,38 @@ from datetime import UTC, datetime
 
 import pytest
 
-from adaptivevision.camera import NullCameraDriver
-from adaptivevision.camera import LocalizedPart
 from adaptivevision.app import StationController, build_camera, build_station
-from adaptivevision.common import CameraKind, StationState, Verdict
-from adaptivevision.common import FaultError
-from adaptivevision.common import InspectionResult
+from adaptivevision.camera import LocalizedPart, NullCameraDriver
 from adaptivevision.common import (
+    CameraKind,
+    FaultError,
+    InspectionResult,
     MeasurementSpec,
     Pose,
     RawFrame,
     RectifiedFrame,
+    StationState,
     Tolerance,
+    Verdict,
 )
-from adaptivevision.config import CameraConfig, StationConfig
+from adaptivevision.config import CameraConfig, Recipe, StationConfig
 from adaptivevision.metrology import (
     MetrologyInspector,
     StaticMeasurementSource,
 )
 from adaptivevision.orchestration import (
     CycleWatchdog,
+    FailureHandler,
     InspectionPipeline,
     InspectionScheduler,
+    ResultBuffer,
     StationStateMachine,
     new_inspection_id,
 )
-from adaptivevision.config import Recipe
 
-# --- State machine -----------------------------------------------------------
-
+# -----------------------------------------------------------------------------
+# State machine, pipeline, scheduler, watchdog
+# -----------------------------------------------------------------------------
 
 def test_state_machine_boot_path() -> None:
     sm = StationStateMachine()
@@ -252,7 +255,7 @@ def test_scheduler_invokes_callback() -> None:
 # --- Watchdog ----------------------------------------------------------------
 
 
-def _result(cycle_time_ms: float) -> InspectionResult:
+def _result_with_cycle_time(cycle_time_ms: float) -> InspectionResult:
     return InspectionResult(
         inspection_id="i1",
         part_id="p",
@@ -268,13 +271,13 @@ def _result(cycle_time_ms: float) -> InspectionResult:
 
 def test_watchdog_no_violation() -> None:
     watchdog = CycleWatchdog(timeout_ms=1000.0)
-    assert watchdog.check(_result(cycle_time_ms=500.0)) is False
+    assert watchdog.check(_result_with_cycle_time(cycle_time_ms=500.0)) is False
     assert watchdog.violations == 0
 
 
 def test_watchdog_violation() -> None:
     watchdog = CycleWatchdog(timeout_ms=100.0)
-    assert watchdog.check(_result(cycle_time_ms=500.0)) is True
+    assert watchdog.check(_result_with_cycle_time(cycle_time_ms=500.0)) is True
     assert watchdog.violations == 1
 
 
@@ -326,3 +329,108 @@ def test_station_run_requires_ready_state() -> None:
     station = build_station(StationConfig(station_id="s", log_level="INFO"))
     with pytest.raises(FaultError):
         station.run(["part-1"])
+
+
+# -----------------------------------------------------------------------------
+# Result buffering and failure handling
+# -----------------------------------------------------------------------------
+
+def _result_with_id(inspection_id: str) -> InspectionResult:
+    return InspectionResult(
+        inspection_id=inspection_id,
+        part_id="part-1",
+        station_id="station-1",
+        verdict=Verdict.PASS,
+        recipe_ver="1.0.0",
+        model_ver="1.0.0",
+        calib_ver="1.0.0",
+        cycle_time_ms=10.0,
+        timestamp_utc=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+def test_buffer_push_and_drain() -> None:
+    buffer = ResultBuffer()
+    buffer.push(_result_with_id("insp-1"))
+    buffer.push(_result_with_id("insp-2"))
+    assert len(buffer) == 2
+    drained = buffer.drain()
+    assert [r.inspection_id for r in drained] == ["insp-1", "insp-2"]
+    assert len(buffer) == 0
+
+
+def test_buffer_drops_oldest_when_full() -> None:
+    buffer = ResultBuffer(capacity=2)
+    buffer.push(_result_with_id("insp-1"))
+    buffer.push(_result_with_id("insp-2"))
+    buffer.push(_result_with_id("insp-3"))
+    assert buffer.is_full()
+    drained = buffer.drain()
+    assert [r.inspection_id for r in drained] == ["insp-2", "insp-3"]
+
+
+def test_buffer_rejects_non_positive_capacity() -> None:
+    with pytest.raises(ValueError):
+        ResultBuffer(capacity=0)
+
+
+def test_failure_handler_persists_on_first_attempt() -> None:
+    persisted: list[str] = []
+
+    def persist(result: InspectionResult) -> None:
+        persisted.append(result.inspection_id)
+
+    handler = FailureHandler(persist)
+    outcome = handler.handle(_result_with_id("insp-1"))
+    assert outcome.persisted
+    assert outcome.attempts == 1
+    assert not outcome.buffered
+    assert persisted == ["insp-1"]
+
+
+def test_failure_handler_retries_then_buffers() -> None:
+    attempts = 0
+
+    def persist(result: InspectionResult) -> None:
+        nonlocal attempts
+        attempts += 1
+        raise RuntimeError("persistence down")
+
+    handler = FailureHandler(persist, max_attempts=3)
+    outcome = handler.handle(_result_with_id("insp-1"))
+    assert not outcome.persisted
+    assert outcome.attempts == 3
+    assert outcome.buffered
+    assert len(handler._buffer) == 1  # type: ignore[attr-defined]
+
+
+def test_failure_handler_succeeds_on_retry() -> None:
+    attempts = 0
+
+    def persist(result: InspectionResult) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 2:
+            raise RuntimeError("transient")
+
+    handler = FailureHandler(persist, max_attempts=3)
+    outcome = handler.handle(_result_with_id("insp-1"))
+    assert outcome.persisted
+    assert outcome.attempts == 2
+
+
+def test_failure_handler_flush_retries_buffered() -> None:
+    attempts = 0
+
+    def persist(result: InspectionResult) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 2:
+            raise RuntimeError("transient")
+
+    handler = FailureHandler(persist, max_attempts=1)
+    handler.handle(_result_with_id("insp-1"))
+    assert len(handler._buffer) == 1  # type: ignore[attr-defined]
+    remaining = handler.flush()
+    assert remaining == ()
+    assert len(handler._buffer) == 0  # type: ignore[attr-defined]
