@@ -36,20 +36,20 @@ import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
-from adaptivevision.advisory.ollama_engine import OllamaAdvisoryEngine
-from adaptivevision.advisory.pipeline import advise, build_evidence
-from adaptivevision.common.enums import ExecutionProvider, Verdict
-from adaptivevision.common.result import DefectMeasurement
-from adaptivevision.common.types import RectifiedFrame
-from adaptivevision.config.aoi_config import load_aoi_config
-from adaptivevision.decision.policy import Decision
-from adaptivevision.inference.onnx import OnnxInferenceEngine
-from adaptivevision.inspection.anomaly.detector import ThresholdAnomalyDetector
-from adaptivevision.inspection.anomaly.metrology import MetrologyConfig, measure_defects
-from adaptivevision.monitoring.drift import DriftDetector, DriftReport
-from adaptivevision.persistence.database import open_database
-from adaptivevision.persistence.repositories import SqliteResultRepository
-from adaptivevision.retrieval import FaissRetrievalIndex
+from adaptivevision.explanation import OllamaAdvisoryEngine
+from adaptivevision.explanation import advise, build_evidence
+from adaptivevision.common import ExecutionProvider, Verdict
+from adaptivevision.common import DefectMeasurement
+from adaptivevision.common import RectifiedFrame
+from adaptivevision.config import load_aoi_config
+from adaptivevision.decision import Decision
+from adaptivevision.engine import OnnxInferenceEngine
+from adaptivevision.metrology import ThresholdAnomalyDetector
+from adaptivevision.metrology import MetrologyConfig, measure_defects
+from adaptivevision.drift import DriftDetector, DriftReport
+from adaptivevision.storage import open_database
+from adaptivevision.storage import SqliteResultRepository
+from adaptivevision.explanation import FaissRetrievalIndex
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
@@ -88,7 +88,7 @@ RETRIEVAL_DIR = REPO_ROOT / "training" / "benchmark_results" / "retrieval"
 _retrieval_index_cache: dict[str, FaissRetrievalIndex | None] = {}
 
 #: Milestone M21: metrology calibration + drift thresholds, loaded once from
-#: configs/config.yaml (see adaptivevision.config.aoi_config).
+#: configs/config.yaml (see adaptivevision.config).
 _aoi_config = load_aoi_config()
 
 #: Real scores bootstrapped so far per model, before a DriftDetector exists.

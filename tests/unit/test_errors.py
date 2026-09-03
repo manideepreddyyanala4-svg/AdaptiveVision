@@ -1,10 +1,10 @@
-"""Unit tests for :mod:`adaptivevision.common.errors`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
 import pytest
 
-from adaptivevision.common import errors
+from adaptivevision import common as errors
 
 
 def test_all_errors_derive_from_base() -> None:

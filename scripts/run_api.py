@@ -22,11 +22,11 @@ from pathlib import Path
 import uvicorn
 
 from adaptivevision.api import create_app
-from adaptivevision.deployment.profiles import DeploymentProfile, load_deployment_profiles
-from adaptivevision.persistence.database import open_database
-from adaptivevision.persistence.repositories import (
+from adaptivevision.deployment import DeploymentProfile, load_deployment_profiles
+from adaptivevision.storage import (
     SqliteAdvisoryRepository,
     SqliteResultRepository,
+    open_database,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.common.types`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import dataclasses
 
 import pytest
 
-from adaptivevision.common import types
+from adaptivevision import common as types
 
 
 def test_roi_center_and_validation() -> None:

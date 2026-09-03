@@ -1,9 +1,0 @@
-{
-  "dataset": "visa",
-  "category": "candle",
-  "height": 224,
-  "width": 224,
-  "backbone": "wide_resnet50_2",
-  "pooled": false,
-  "test_auroc": 0.9211
-}

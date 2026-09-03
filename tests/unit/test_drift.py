@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from adaptivevision.monitoring.drift import (
+from adaptivevision.drift import (
     NOMINAL,
     SENSOR_DRIFT_ALERT,
     DriftDetector,

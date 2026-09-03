@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import time
 
-from adaptivevision.acquisition import NullCameraDriver
-from adaptivevision.common.enums import CameraKind
+from adaptivevision.camera import NullCameraDriver
+from adaptivevision.common import CameraKind
 from adaptivevision.config import CameraConfig
 from adaptivevision.orchestration import InspectionPipeline, ResultBuffer
 

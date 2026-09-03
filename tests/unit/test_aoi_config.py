@@ -1,11 +1,11 @@
-"""Unit tests for :mod:`adaptivevision.config.aoi_config` (Milestone M21)."""
+"""Unit tests for :mod:`adaptivevision.config` (Milestone M21)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from adaptivevision.config import AoiConfig, DriftSettings, KpiSettings, MetrologySettings
-from adaptivevision.config.aoi_config import load_aoi_config
+from adaptivevision.config import load_aoi_config
 
 
 def test_load_aoi_config_missing_file_returns_defaults(tmp_path: Path) -> None:

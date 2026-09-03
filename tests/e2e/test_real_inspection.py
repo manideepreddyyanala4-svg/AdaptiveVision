@@ -21,15 +21,15 @@ from pathlib import Path
 import cv2
 import pytest
 
-from adaptivevision.acquisition.frame import build_frame
-from adaptivevision.common.enums import ExecutionProvider, Verdict
-from adaptivevision.common.interfaces import CameraDriver
-from adaptivevision.common.types import RawFrame
+from adaptivevision.camera import build_frame
+from adaptivevision.common import ExecutionProvider, Verdict
+from adaptivevision.common import CameraDriver
+from adaptivevision.common import RawFrame
 from adaptivevision.decision import DecisionPolicy
-from adaptivevision.inference.onnx import OnnxInferenceEngine
-from adaptivevision.inspection.anomaly.detector import ThresholdAnomalyDetector
-from adaptivevision.orchestration.pipeline import InspectionPipeline
-from adaptivevision.preprocessing import resize_to
+from adaptivevision.engine import OnnxInferenceEngine
+from adaptivevision.metrology import ThresholdAnomalyDetector
+from adaptivevision.orchestration import InspectionPipeline
+from adaptivevision.camera import resize_to
 
 _DATA_ROOT = Path("/home/tonyai/Documents/adaptivevision_M1 (2)/adaptivevision_M1")
 _MODEL_PATH = (

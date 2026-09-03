@@ -8,14 +8,14 @@ from datetime import UTC, datetime
 import numpy as np
 import pytest
 
-from adaptivevision.calibration import (
+from adaptivevision.camera import (
     CalibrationRectifier,
     CameraCalibration,
     identity_calibration,
     load_calibration,
 )
-from adaptivevision.common.errors import CalibrationError
-from adaptivevision.common.types import RawFrame
+from adaptivevision.common import CalibrationError
+from adaptivevision.common import RawFrame
 
 
 def _artifact() -> dict[str, object]:

@@ -13,34 +13,34 @@ from datetime import UTC, datetime
 
 import pytest
 
-from adaptivevision.common.enums import DefectClass, Severity, Verdict
-from adaptivevision.common.errors import AdaptiveVisionError
-from adaptivevision.common.result import (
+from adaptivevision.common import DefectClass, Severity, Verdict
+from adaptivevision.common import AdaptiveVisionError
+from adaptivevision.common import (
     AdvisoryReport,
     Defect,
     DefectMeasurement,
     InspectionEvidence,
     InspectionResult,
 )
-from adaptivevision.common.types import ROI, Measurement
-from adaptivevision.persistence.database import (
+from adaptivevision.common import ROI, Measurement
+from adaptivevision.storage import (
     build_engine,
     init_db,
     make_session_factory,
     open_database,
     session_scope,
 )
-from adaptivevision.persistence.image_store import ImageStoreError, LocalImageStore
-from adaptivevision.persistence.integration import (
+from adaptivevision.storage import ImageStoreError, LocalImageStore
+from adaptivevision.storage import (
     PersistenceHandler,
     make_persistence_handler,
 )
-from adaptivevision.persistence.models_orm import InspectionRecord
-from adaptivevision.persistence.repositories import (
+from adaptivevision.storage import InspectionRecord
+from adaptivevision.storage import (
     SqliteAdvisoryRepository,
     SqliteResultRepository,
 )
-from adaptivevision.persistence.traceability import (
+from adaptivevision.storage import (
     build_mes_payload,
     build_traceability_record,
     serialize_mes_payload,
@@ -522,7 +522,7 @@ def test_advisory_repository_get_wraps_storage_failure() -> None:
 def test_as_utc_leaves_timezone_aware_timestamp_unchanged() -> None:
     from datetime import timedelta, timezone
 
-    from adaptivevision.persistence.repositories import _as_utc
+    from adaptivevision.storage import _as_utc
 
     aware = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone(timedelta(hours=5)))
     result = _as_utc(aware)

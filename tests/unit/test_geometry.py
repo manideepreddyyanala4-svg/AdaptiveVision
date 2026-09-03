@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.common.geometry`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from adaptivevision.common import geometry
+from adaptivevision import common as geometry
 
 
 def test_deg_rad_roundtrip() -> None:

@@ -1,14 +1,14 @@
-"""Unit tests for :mod:`adaptivevision.acquisition`."""
+"""Unit tests for :mod:`adaptivevision.camera`."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from adaptivevision.acquisition import NullCameraDriver, build_frame, new_frame_id
-from adaptivevision.common.enums import CameraKind
-from adaptivevision.common.errors import AcquisitionError
-from adaptivevision.common.interfaces import CameraDriver
+from adaptivevision.camera import NullCameraDriver, build_frame, new_frame_id
+from adaptivevision.common import CameraKind
+from adaptivevision.common import AcquisitionError
+from adaptivevision.common import CameraDriver
 from adaptivevision.config import CameraConfig
 
 

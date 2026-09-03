@@ -11,12 +11,12 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from adaptivevision.acquisition import ThreadedFrameBuffer, build_frame
-from adaptivevision.acquisition.camera import NullCameraDriver
-from adaptivevision.common.enums import CameraKind
-from adaptivevision.common.errors import AcquisitionError
-from adaptivevision.common.interfaces import CameraDriver
-from adaptivevision.common.types import RawFrame
+from adaptivevision.camera import ThreadedFrameBuffer, build_frame
+from adaptivevision.camera import NullCameraDriver
+from adaptivevision.common import CameraKind
+from adaptivevision.common import AcquisitionError
+from adaptivevision.common import CameraDriver
+from adaptivevision.common import RawFrame
 from adaptivevision.config import CameraConfig
 
 _WAIT_TIMEOUT_S = 2.0

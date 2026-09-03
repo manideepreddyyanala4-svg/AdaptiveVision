@@ -6,8 +6,8 @@ from collections.abc import Sequence
 
 import pytest
 
-from adaptivevision.common.errors import CommsError
-from adaptivevision.communication.plc import ModbusTcpTransport
+from adaptivevision.common import CommsError
+from adaptivevision.communication import ModbusTcpTransport
 
 
 class _FakeClient:

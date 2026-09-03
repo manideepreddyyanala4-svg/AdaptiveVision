@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from adaptivevision.monitoring import MetricsRegistry, render_metrics
+from adaptivevision.drift import MetricsRegistry, render_metrics
 
 
 def test_render_counter() -> None:

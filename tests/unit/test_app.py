@@ -8,21 +8,21 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from adaptivevision.acquisition.frame import build_frame
-from adaptivevision.app.app import (
+from adaptivevision.camera import build_frame
+from adaptivevision.app import (
     build_anomaly_detector,
     build_decision_policy,
     build_preprocessor,
     build_recipe,
     build_station,
 )
-from adaptivevision.common.enums import ExecutionProvider, Verdict
-from adaptivevision.common.types import RectifiedFrame
-from adaptivevision.config.settings import StationConfig
-from adaptivevision.inspection.anomaly.detector import ThresholdAnomalyDetector
-from adaptivevision.recipe import Recipe
-from adaptivevision.recipe.model import DecisionPolicy as RecipeDecisionPolicy
-from adaptivevision.recipe.store import JsonRecipeStore
+from adaptivevision.common import ExecutionProvider, Verdict
+from adaptivevision.common import RectifiedFrame
+from adaptivevision.config import StationConfig
+from adaptivevision.metrology import ThresholdAnomalyDetector
+from adaptivevision.config import Recipe
+from adaptivevision.config import DecisionPolicy as RecipeDecisionPolicy
+from adaptivevision.config import JsonRecipeStore
 
 _REAL_MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
 _FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"

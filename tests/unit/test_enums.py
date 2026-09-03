@@ -1,8 +1,8 @@
-"""Unit tests for :mod:`adaptivevision.common.enums`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
-from adaptivevision.common import enums
+from adaptivevision import common as enums
 
 
 def test_verdict_values_are_pinned() -> None:

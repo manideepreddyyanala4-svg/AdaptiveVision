@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from adaptivevision.common.enums import CameraKind, ExecutionProvider
+from adaptivevision.common import CameraKind, ExecutionProvider
 from adaptivevision.config import (
     CameraConfig,
     StationConfig,

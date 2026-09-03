@@ -6,13 +6,13 @@ from datetime import UTC, datetime
 
 import pytest
 
-from adaptivevision.acquisition import NullCameraDriver
-from adaptivevision.alignment import LocalizedPart
+from adaptivevision.camera import NullCameraDriver
+from adaptivevision.camera import LocalizedPart
 from adaptivevision.app import StationController, build_camera, build_station
-from adaptivevision.common.enums import CameraKind, StationState, Verdict
-from adaptivevision.common.errors import FaultError
-from adaptivevision.common.result import InspectionResult
-from adaptivevision.common.types import (
+from adaptivevision.common import CameraKind, StationState, Verdict
+from adaptivevision.common import FaultError
+from adaptivevision.common import InspectionResult
+from adaptivevision.common import (
     MeasurementSpec,
     Pose,
     RawFrame,
@@ -20,7 +20,7 @@ from adaptivevision.common.types import (
     Tolerance,
 )
 from adaptivevision.config import CameraConfig, StationConfig
-from adaptivevision.inspection.metrology import (
+from adaptivevision.metrology import (
     MetrologyInspector,
     StaticMeasurementSource,
 )
@@ -31,7 +31,7 @@ from adaptivevision.orchestration import (
     StationStateMachine,
     new_inspection_id,
 )
-from adaptivevision.recipe import Recipe
+from adaptivevision.config import Recipe
 
 # --- State machine -----------------------------------------------------------
 

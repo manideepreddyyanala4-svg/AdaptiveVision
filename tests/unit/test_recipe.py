@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.recipe`."""
+"""Unit tests for :mod:`adaptivevision.config`."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from adaptivevision.common.enums import Severity
-from adaptivevision.common.errors import RecipeError
-from adaptivevision.common.types import ROI, MeasurementSpec, Tolerance
-from adaptivevision.recipe import (
+from adaptivevision.common import Severity
+from adaptivevision.common import RecipeError
+from adaptivevision.common import ROI, MeasurementSpec, Tolerance
+from adaptivevision.config import (
     DecisionPolicy,
     JsonRecipeStore,
     Recipe,
@@ -138,6 +138,6 @@ def test_json_store_load_id_mismatch_raises(tmp_path: Path) -> None:
 
 
 def test_json_store_is_recipe_store(tmp_path: Path) -> None:
-    from adaptivevision.common.interfaces import RecipeStore
+    from adaptivevision.common import RecipeStore
 
     assert isinstance(JsonRecipeStore(tmp_path), RecipeStore)

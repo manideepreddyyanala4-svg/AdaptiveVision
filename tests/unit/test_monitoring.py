@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from adaptivevision.monitoring import HealthCheck, MetricsRegistry, control_chart
+from adaptivevision.drift import HealthCheck, MetricsRegistry, control_chart
 
 
 def test_counter_increment_and_read() -> None:

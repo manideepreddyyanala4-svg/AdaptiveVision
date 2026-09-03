@@ -51,10 +51,10 @@ from typing import Any
 import cv2
 import numpy as np
 
-from adaptivevision.common.types import RectifiedFrame
-from adaptivevision.config.aoi_config import load_aoi_config
-from adaptivevision.inference.onnx import OnnxInferenceEngine
-from adaptivevision.inspection.anomaly.detector import ThresholdAnomalyDetector
+from adaptivevision.common import RectifiedFrame
+from adaptivevision.config import load_aoi_config
+from adaptivevision.engine import OnnxInferenceEngine
+from adaptivevision.metrology import ThresholdAnomalyDetector
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_MODELS_DIR = _REPO_ROOT / "models"

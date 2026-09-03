@@ -8,11 +8,11 @@ from typing import Any
 import numpy as np
 import pytest
 
-from adaptivevision.common.enums import DefectClass, Severity
-from adaptivevision.common.interfaces import InferenceEngine
-from adaptivevision.common.result import AnomalyResult
-from adaptivevision.common.types import ROI, RectifiedFrame
-from adaptivevision.inspection.anomaly import (
+from adaptivevision.common import DefectClass, Severity
+from adaptivevision.common import InferenceEngine
+from adaptivevision.common import AnomalyResult
+from adaptivevision.common import ROI, RectifiedFrame
+from adaptivevision.metrology import (
     StaticAnomalyDetector,
     ThresholdAnomalyDetector,
 )

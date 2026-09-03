@@ -1,10 +1,10 @@
-"""Unit tests for :mod:`adaptivevision.common.ids`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
 import re
 
-from adaptivevision.common import ids
+from adaptivevision import common as ids
 
 _PATTERN = re.compile(r"^(insp|part|frame|trace)-\d{13}-[0-9a-f]{8}$")
 

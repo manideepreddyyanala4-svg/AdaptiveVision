@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from adaptivevision.common.errors import CommsError
-from adaptivevision.communication.mqtt import MqttPublisher
+from adaptivevision.common import CommsError
+from adaptivevision.communication import MqttPublisher
 
 
 class _FakeClient:

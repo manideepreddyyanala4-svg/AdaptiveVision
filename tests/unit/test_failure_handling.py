@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from adaptivevision.common.enums import Verdict
-from adaptivevision.common.result import InspectionResult
+from adaptivevision.common import Verdict
+from adaptivevision.common import InspectionResult
 from adaptivevision.orchestration import FailureHandler, ResultBuffer
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.common.result`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from adaptivevision.common import result, types
-from adaptivevision.common.enums import DefectClass, Severity, Verdict
+from adaptivevision import common as result
+from adaptivevision import common as types
+from adaptivevision.common import DefectClass, Severity, Verdict
 
 
 def _defect() -> result.Defect:

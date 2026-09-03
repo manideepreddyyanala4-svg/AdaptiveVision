@@ -8,8 +8,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from adaptivevision.common.interfaces import InferenceEngine
-from adaptivevision.inference.profiling import benchmark_latency
+from adaptivevision.common import InferenceEngine
+from adaptivevision.engine import benchmark_latency
 
 
 class _FakeEngine(InferenceEngine):
@@ -98,7 +98,7 @@ class _FakeTorch:
 def test_benchmark_latency_reports_gpu_memory_when_cuda_available(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from adaptivevision.inference import profiling
+    from adaptivevision import engine as profiling
 
     fake_torch = _FakeTorch()
     monkeypatch.setattr(profiling, "_try_import_torch", lambda: fake_torch)

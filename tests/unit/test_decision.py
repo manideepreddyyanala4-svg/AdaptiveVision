@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from adaptivevision.common.enums import DefectClass, Severity, Verdict
-from adaptivevision.common.result import AnomalyResult, Defect, MetrologyResult
+from adaptivevision.common import DefectClass, Severity, Verdict
+from adaptivevision.common import AnomalyResult, Defect, MetrologyResult
 from adaptivevision.decision import DecisionPolicy
-from adaptivevision.recipe.model import DecisionPolicy as RecipeDecisionPolicy
-from adaptivevision.recipe.model import Recipe
+from adaptivevision.config import DecisionPolicy as RecipeDecisionPolicy
+from adaptivevision.config import Recipe
 
 
 def _defect(severity: Severity) -> Defect:

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from adaptivevision.calibration import (
+from adaptivevision.camera import (
     CalibrationManager,
     CalibrationSelfTest,
     CameraCalibration,
     identity_calibration,
 )
-from adaptivevision.common.errors import CalibrationError
+from adaptivevision.common import CalibrationError
 
 
 def _calibration(

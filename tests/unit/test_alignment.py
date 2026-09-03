@@ -8,13 +8,13 @@ from datetime import UTC, datetime
 import numpy as np
 import pytest
 
-from adaptivevision.alignment import (
+from adaptivevision.camera import (
     GoldenReference,
     ReferenceAligner,
     load_golden_reference,
 )
-from adaptivevision.common.errors import FaultError
-from adaptivevision.common.types import Pose, RectifiedFrame
+from adaptivevision.common import FaultError
+from adaptivevision.common import Pose, RectifiedFrame
 
 
 def _reference_data() -> dict[str, object]:
@@ -138,7 +138,7 @@ def test_reference_aligner_rejects_min_score_above_estimate() -> None:
 def test_localized_part_rejects_invalid_score() -> None:
     frame = _frame()
     with pytest.raises(FaultError, match=r"\[0, 1\]"):
-        from adaptivevision.alignment import LocalizedPart
+        from adaptivevision.camera import LocalizedPart
 
         LocalizedPart(
             frame=frame,

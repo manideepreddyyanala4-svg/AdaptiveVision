@@ -9,8 +9,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from adaptivevision.common.errors import RetrievalError
-from adaptivevision.retrieval import FaissRetrievalIndex
+from adaptivevision.common import RetrievalError
+from adaptivevision.explanation import FaissRetrievalIndex
 
 
 class _FakeIndex:
@@ -205,7 +205,7 @@ def test_import_faiss_raises_retrieval_error_when_missing(
 ) -> None:
     import importlib
 
-    from adaptivevision.retrieval import faiss_index
+    from adaptivevision import explanation as faiss_index
 
     real_import_module = importlib.import_module
 

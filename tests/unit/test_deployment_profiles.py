@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from adaptivevision.deployment.profiles import (
+from adaptivevision.deployment import (
     DeploymentProfile,
     explain_recommendation,
     feasible_profiles,

@@ -8,13 +8,13 @@ from typing import Any
 
 import pytest
 
-from adaptivevision.advisory.ollama_engine import OllamaAdvisoryEngine
-from adaptivevision.advisory.pipeline import advise, build_evidence
-from adaptivevision.common.enums import DefectClass, Severity, Verdict
-from adaptivevision.common.errors import AdvisoryError
-from adaptivevision.common.interfaces import AdvisoryEngine
-from adaptivevision.common.result import Defect, InspectionEvidence, RetrievalMatch
-from adaptivevision.decision.policy import Decision
+from adaptivevision.explanation import OllamaAdvisoryEngine
+from adaptivevision.explanation import advise, build_evidence
+from adaptivevision.common import DefectClass, Severity, Verdict
+from adaptivevision.common import AdvisoryError
+from adaptivevision.common import AdvisoryEngine
+from adaptivevision.common import Defect, InspectionEvidence, RetrievalMatch
+from adaptivevision.decision import Decision
 
 
 def _evidence(*, severity: Severity = Severity.MAJOR) -> InspectionEvidence:
@@ -70,7 +70,7 @@ class _AsAttr:
 def test_generate_report_uses_fallback_when_import_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from adaptivevision.advisory import ollama_engine
+    from adaptivevision import explanation as ollama_engine
 
     monkeypatch.setattr(ollama_engine, "_try_import_ollama", lambda: None)
     engine = OllamaAdvisoryEngine()
@@ -126,7 +126,7 @@ def test_generate_report_recovers_after_one_bad_attempt() -> None:
 
 
 def test_fallback_report_confidence_is_zero() -> None:
-    from adaptivevision.advisory.ollama_engine import _fallback_report
+    from adaptivevision.explanation import _fallback_report
 
     report = _fallback_report(_evidence())
     assert report.confidence_score == 0.0
@@ -134,7 +134,7 @@ def test_fallback_report_confidence_is_zero() -> None:
 
 
 def test_fallback_report_without_retrieval_matches() -> None:
-    from adaptivevision.advisory.ollama_engine import _fallback_report
+    from adaptivevision.explanation import _fallback_report
 
     evidence = InspectionEvidence(
         sample_id="insp-1",
@@ -150,7 +150,7 @@ def test_fallback_report_without_retrieval_matches() -> None:
 
 
 def test_fallback_report_mentions_heatmap_region_when_present() -> None:
-    from adaptivevision.advisory.ollama_engine import _fallback_report
+    from adaptivevision.explanation import _fallback_report
 
     evidence = InspectionEvidence(
         sample_id="insp-1",
@@ -166,7 +166,7 @@ def test_fallback_report_mentions_heatmap_region_when_present() -> None:
 
 
 def test_build_prompt_includes_heatmap_region_line_when_present() -> None:
-    from adaptivevision.advisory.ollama_engine import _build_prompt
+    from adaptivevision.explanation import _build_prompt
 
     evidence = _evidence()
     with_region = dataclasses.replace(evidence, heatmap_region="lower-center")
@@ -175,7 +175,7 @@ def test_build_prompt_includes_heatmap_region_line_when_present() -> None:
 
 
 def test_try_import_ollama_returns_module_when_installed() -> None:
-    from adaptivevision.advisory.ollama_engine import _try_import_ollama
+    from adaptivevision.explanation import _try_import_ollama
 
     # `ollama` is a declared dependency (pyproject's `intelligence` extra) and
     # is expected to be installed wherever this test suite runs.
@@ -189,7 +189,7 @@ def test_try_import_ollama_returns_none_on_import_error(
 ) -> None:
     import importlib
 
-    from adaptivevision.advisory import ollama_engine
+    from adaptivevision import explanation as ollama_engine
 
     real_import_module = importlib.import_module
 
@@ -253,7 +253,7 @@ class _MisbehavingEngine(AdvisoryEngine):
     """An advisory engine that (incorrectly) changes the severity."""
 
     def generate_report(self, evidence: InspectionEvidence) -> Any:
-        from adaptivevision.common.result import AdvisoryReport
+        from adaptivevision.common import AdvisoryReport
 
         return AdvisoryReport(
             defect_classification="x",

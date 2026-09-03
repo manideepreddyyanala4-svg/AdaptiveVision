@@ -7,11 +7,11 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from adaptivevision.api import create_app
-from adaptivevision.common.enums import Severity, Verdict
-from adaptivevision.common.interfaces import AdvisoryRepository, ResultRepository
-from adaptivevision.common.result import AdvisoryReport, InspectionEvidence, InspectionResult
-from adaptivevision.deployment.profiles import DeploymentProfile
-from adaptivevision.monitoring import HealthCheck, MetricsRegistry
+from adaptivevision.common import Severity, Verdict
+from adaptivevision.common import AdvisoryRepository, ResultRepository
+from adaptivevision.common import AdvisoryReport, InspectionEvidence, InspectionResult
+from adaptivevision.deployment import DeploymentProfile
+from adaptivevision.drift import HealthCheck, MetricsRegistry
 
 
 class _FakeAdvisoryRepository(AdvisoryRepository):
@@ -265,7 +265,7 @@ class _FakeWebSocket:
 def test_live_hub_broadcasts_to_connected_clients() -> None:
     import asyncio
 
-    from adaptivevision.api.app import _LiveHub
+    from adaptivevision.api import _LiveHub
 
     hub = _LiveHub()
     client_a, client_b = _FakeWebSocket(), _FakeWebSocket()

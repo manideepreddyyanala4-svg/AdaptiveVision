@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from adaptivevision.common.result import DefectMeasurement
-from adaptivevision.inspection.anomaly.metrology import (
+from adaptivevision.common import DefectMeasurement
+from adaptivevision.metrology import (
     PARTICLE,
     SCRATCH,
     MetrologyConfig,

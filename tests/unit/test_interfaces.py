@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`adaptivevision.common.interfaces`.
+"""Unit tests for :mod:`adaptivevision.common`.
 
 Each interface is verified to be abstract (cannot be instantiated, and a
 subclass missing a method also cannot be instantiated) and implementable (a
@@ -14,14 +14,14 @@ from typing import Any
 
 import pytest
 
-from adaptivevision.common import interfaces
-from adaptivevision.common.enums import Verdict
-from adaptivevision.common.result import (
+from adaptivevision import common as interfaces
+from adaptivevision.common import Verdict
+from adaptivevision.common import (
     AnomalyResult,
     InspectionResult,
     MetrologyResult,
 )
-from adaptivevision.common.types import ROI, RawFrame, RectifiedFrame
+from adaptivevision.common import ROI, RawFrame, RectifiedFrame
 
 ABSTRACT_INTERFACES = [
     interfaces.CameraDriver,

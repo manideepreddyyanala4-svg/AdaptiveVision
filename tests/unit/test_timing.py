@@ -1,10 +1,10 @@
-"""Unit tests for :mod:`adaptivevision.common.timing`."""
+"""Unit tests for :mod:`adaptivevision.common`."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 
-from adaptivevision.common import timing
+from adaptivevision import common as timing
 
 
 def make_clock(times: list[float]) -> Callable[[], float]:

@@ -9,9 +9,9 @@ from typing import Any, ClassVar
 import numpy as np
 import pytest
 
-from adaptivevision.common.enums import ExecutionProvider
-from adaptivevision.common.errors import InferenceError
-from adaptivevision.inference import OnnxInferenceEngine
+from adaptivevision.common import ExecutionProvider
+from adaptivevision.common import InferenceError
+from adaptivevision.engine import OnnxInferenceEngine
 
 
 @dataclass(slots=True)
