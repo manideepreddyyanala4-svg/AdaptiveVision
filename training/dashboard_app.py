@@ -36,20 +36,19 @@ import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
-from adaptivevision.explanation import OllamaAdvisoryEngine
-from adaptivevision.explanation import advise, build_evidence
-from adaptivevision.common import ExecutionProvider, Verdict
-from adaptivevision.common import DefectMeasurement
-from adaptivevision.common import RectifiedFrame
+from adaptivevision.common import DefectMeasurement, ExecutionProvider, RectifiedFrame, Verdict
 from adaptivevision.config import load_aoi_config
 from adaptivevision.decision import Decision
-from adaptivevision.engine import OnnxInferenceEngine
-from adaptivevision.metrology import ThresholdAnomalyDetector
-from adaptivevision.metrology import MetrologyConfig, measure_defects
 from adaptivevision.drift import DriftDetector, DriftReport
-from adaptivevision.storage import open_database
-from adaptivevision.storage import SqliteResultRepository
-from adaptivevision.explanation import FaissRetrievalIndex
+from adaptivevision.engine import OnnxInferenceEngine
+from adaptivevision.explanation import (
+    FaissRetrievalIndex,
+    OllamaAdvisoryEngine,
+    advise,
+    build_evidence,
+)
+from adaptivevision.metrology import MetrologyConfig, ThresholdAnomalyDetector, measure_defects
+from adaptivevision.storage import SqliteResultRepository, open_database
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
@@ -167,7 +166,7 @@ def _retrieval_index_for(model_name: str) -> FaissRetrievalIndex | None:
                 preprocessing_version=meta["preprocessing_version"],
             )
             index.load(index_path)
-        except Exception as exc:  # noqa: BLE001 - a bad index must not break scoring
+        except Exception as exc:
             print(f"failed to load retrieval index for {model_name}: {exc}")
             index = None
     _retrieval_index_cache[model_name] = index
@@ -341,7 +340,7 @@ def _score_image(
     # the model's (3, H, W) contract itself. Feeding it bgr_to_model_input()'s
     # already-transposed output here double-transposed it (production bug,
     # same root cause already fixed in training/benchmark/export.py's
-    # verification step: see docs/milestones/M20.md).
+    # verification step: see docs/architecture.md, Milestone M20).
     resized = cv2.resize(bgr, (manifest["width"], manifest["height"]), interpolation=cv2.INTER_AREA)
     image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32)
     frame = RectifiedFrame(

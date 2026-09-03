@@ -4,7 +4,7 @@
 # (results, metrics, health, dashboard) for edge observability. The image is
 # built from the repository root so the package can be installed editable-free.
 #
-#   docker build -f deploy/docker/Dockerfile -t adaptivevision:edge .
+#   docker build -f deploy/Dockerfile -t adaptivevision:edge .
 #   docker run --rm -p 8000:8000 adaptivevision:edge
 
 FROM python:3.11-slim AS runtime
@@ -29,7 +29,7 @@ EXPOSE 8000
 # Deliberately NOT `uvicorn adaptivevision.api:create_app --factory`: that
 # calls the raw factory with zero arguments, but create_app()'s `repository`
 # parameter has no default, so the container crashed at startup every time
-# (docs/milestones/M20.md). scripts/run_api.py is the one place that actually
+# (docs/architecture.md, Milestone M20). scripts/run_api.py is the one place that actually
 # builds the repository/advisory/deployment-profiles composition create_app()
 # needs, exactly like scripts/run_station.py is the real entry point for the
 # station rather than calling app.app.build_station() directly.

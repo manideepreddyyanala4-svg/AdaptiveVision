@@ -27,7 +27,7 @@ clear error rather than silently guessing. This deliberately does not import
 ``training/benchmark``'s own richer dataset-loading code: that code is
 part of this project's training-only surface (it depends on ``torch``, and
 sits outside the ``mypy --strict`` tree by design -- see
-``docs/milestones/M19.md``), while this script is checked the same way
+``docs/architecture.md``, Milestone M19), while this script is checked the same way
 ``src/`` is (``pyproject.toml``'s ``[tool.mypy] files``).
 
 Usage:
@@ -233,7 +233,8 @@ def score_images(
     ``engine.infer`` directly) so image resizing and the channel-last ->
     channel-first conversion go through the same, already-tested path
     production inference uses -- this project has twice shipped a real bug
-    from re-deriving that transpose by hand (see ``docs/milestones/M20.md``).
+    from re-deriving that transpose by hand (see ``docs/architecture.md``,
+    Milestone M20).
 
     Args:
         engine: A loaded :class:`OnnxInferenceEngine`.

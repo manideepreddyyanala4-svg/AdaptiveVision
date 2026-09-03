@@ -5,7 +5,7 @@
 # (API + Prometheus + Grafana) via docker compose.
 #
 # Usage:
-#   ./deploy/scripts/deploy_edge.sh [up|down|build|logs]
+#   ./deploy/deploy_edge.sh [up|down|build|logs]
 #
 #   up      - build and start the edge stack (default)
 #   down    - stop and remove the edge stack
@@ -14,8 +14,8 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COMPOSE_FILE="${REPO_ROOT}/deploy/compose/docker-compose.yml"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE_FILE="${REPO_ROOT}/deploy/docker-compose.yml"
 
 ACTION="${1:-up}"
 
@@ -31,7 +31,7 @@ case "${ACTION}" in
     docker compose -f "${COMPOSE_FILE}" down
     ;;
   build)
-    docker build -f "${REPO_ROOT}/deploy/docker/Dockerfile" -t adaptivevision:edge "${REPO_ROOT}"
+    docker build -f "${REPO_ROOT}/deploy/Dockerfile" -t adaptivevision:edge "${REPO_ROOT}"
     ;;
   logs)
     docker compose -f "${COMPOSE_FILE}" logs -f
