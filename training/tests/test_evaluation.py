@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
-from benchmark.evaluation import compute_aupimo, compute_metrics
-
+from training.evaluate import compute_aupimo, compute_metrics
 
 # ---------------------------------------------------------------------------
 # PG2 / PB2
@@ -149,7 +147,7 @@ def test_aupimo_all_normal_batch_is_nan() -> None:
 def test_aupimo_matches_pixel_metrics_field() -> None:
     """compute_pixel_metrics wires aupimo through -- confirms the integration
     point, not just the standalone function."""
-    from benchmark.evaluation import compute_pixel_metrics
+    from training.evaluate import compute_pixel_metrics
 
     maps, mask = _step_function_case()
     pixel_metrics = compute_pixel_metrics(maps, mask)

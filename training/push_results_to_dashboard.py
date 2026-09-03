@@ -7,7 +7,7 @@ production pipeline would, then persists an ``InspectionResult`` per image via
 (``training/dashboard_app.py``) without inventing any new UI logic here.
 
 Usage:
-    python training/push_results_to_dashboard.py
+    python -m training.push_results_to_dashboard
     python training/dashboard_app.py
     # open http://127.0.0.1:8010/
 """
@@ -19,17 +19,19 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from image_io import load_rgb
-from train_anomaly_model import resolve_paths
-
-from adaptivevision.common.enums import ExecutionProvider, Verdict
-from adaptivevision.common.ids import new_inspection_id, new_part_id
-from adaptivevision.common.result import InspectionResult
-from adaptivevision.common.types import RectifiedFrame
-from adaptivevision.inference.onnx import OnnxInferenceEngine
-from adaptivevision.inspection.anomaly.detector import ThresholdAnomalyDetector
-from adaptivevision.persistence.database import open_database
-from adaptivevision.persistence.repositories import SqliteResultRepository
+from adaptivevision.common import (
+    ExecutionProvider,
+    InspectionResult,
+    RectifiedFrame,
+    Verdict,
+    new_inspection_id,
+    new_part_id,
+)
+from adaptivevision.engine import OnnxInferenceEngine
+from adaptivevision.metrology import ThresholdAnomalyDetector
+from adaptivevision.storage import SqliteResultRepository, open_database
+from training.data import load_rgb
+from training.legacy import resolve_paths
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 IMAGES_PER_MODEL = 24

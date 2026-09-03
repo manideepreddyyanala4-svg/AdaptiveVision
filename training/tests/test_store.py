@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmark.store import (
-    compute_run_id,
+from training.store import (
     completed_run_ids,
+    compute_run_id,
     finish_run,
     open_database,
     reset_incomplete,
@@ -105,8 +104,7 @@ def test_start_then_finish_updates_same_row_not_duplicate(tmp_path) -> None:
     finish_run(session_factory, run_id, {"status": "ok", "auroc": 0.99})
 
     from sqlalchemy import select
-
-    from benchmark.store import RunRow, session_scope
+    from training.store import RunRow, session_scope
 
     with session_scope(session_factory) as session:
         rows = list(session.scalars(select(RunRow).where(RunRow.run_id == run_id)))
@@ -125,8 +123,7 @@ def test_update_columns_backfills_existing_row(tmp_path) -> None:
     assert found is True
 
     from sqlalchemy import select
-
-    from benchmark.store import RunRow, session_scope
+    from training.store import RunRow, session_scope
 
     with session_scope(session_factory) as session:
         row = session.scalar(select(RunRow).where(RunRow.run_id == run_id))
@@ -169,8 +166,7 @@ def test_reset_incomplete_scoped_not_table_wide(tmp_path) -> None:
     assert deleted == 0
     # The row outside scope must still exist.
     from sqlalchemy import select
-
-    from benchmark.store import RunRow, session_scope
+    from training.store import RunRow, session_scope
 
     with session_scope(session_factory) as session:
         assert session.scalar(select(RunRow).where(RunRow.run_id == other_running_id)) is not None
@@ -212,8 +208,7 @@ def test_start_run_upserts_over_an_existing_ok_row(tmp_path) -> None:
     start_run(session_factory, run_id, _identity())
 
     from sqlalchemy import select
-
-    from benchmark.store import RunRow, session_scope
+    from training.store import RunRow, session_scope
 
     with session_scope(session_factory) as session:
         rows = list(session.scalars(select(RunRow).where(RunRow.run_id == run_id)))

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import cv2
-
-from benchmark.data import discover_configs, load_split
+import numpy as np
+from training.data import discover_configs, load_split
 
 
 def _write_image(path: Path) -> None:

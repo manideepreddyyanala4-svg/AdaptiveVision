@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from benchmark.data import DatasetConfig, loco_defect_kind
-from benchmark.planning import FEWSHOT_SHOTS, build_run_plan
-from benchmark.registry import MethodSpec
+from training.data import DatasetConfig, loco_defect_kind
+from training.models import MethodSpec
+from training.sweep import FEWSHOT_SHOTS, build_run_plan
 
 
 def test_loco_defect_kind_good():
