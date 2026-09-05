@@ -28,9 +28,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, TypeAlias
 
+import cv2
 import numpy as np
 
 from adaptivevision.common import (
+    AcquisitionError,
     CalibrationError,
     CameraDriver,
     FaultError,
@@ -119,8 +121,6 @@ class NullCameraDriver(CameraDriver):
             AcquisitionError: If the driver is not open.
         """
         if not self._opened:
-            from adaptivevision.common import AcquisitionError
-
             msg = "NullCameraDriver.capture called before open()"
             raise AcquisitionError(msg)
         image = np.zeros(
@@ -132,6 +132,65 @@ class NullCameraDriver(CameraDriver):
             self._config.camera_id,
             trigger_id=trigger_id,
         )
+
+    def is_healthy(self) -> bool:
+        """Return ``True`` while the driver is open."""
+        return self._opened
+
+
+class FileImageCameraDriver(CameraDriver):
+    """A :class:`~adaptivevision.common.CameraDriver` that replays one real image from disk.
+
+    Unlike :class:`NullCameraDriver`'s all-zero synthetic frame, every
+    capture returns the same real (color or grayscale) image -- useful for
+    demos and manual verification against a real trained model when no
+    physical camera is attached.
+
+    Args:
+        image_path: Path to an image file readable by OpenCV (e.g. PNG/JPEG).
+        camera_id: Identifier recorded on each captured frame.
+    """
+
+    def __init__(self, image_path: Path, camera_id: str = "file") -> None:
+        """Initialize the driver with the image path; the file is read at open()."""
+        self._image_path = image_path
+        self._camera_id = camera_id
+        self._image: Image | None = None
+        self._opened = False
+
+    def open(self) -> None:
+        """Read the configured image file into memory as RGB.
+
+        Raises:
+            AcquisitionError: If the file is missing or unreadable.
+        """
+        bgr = cv2.imread(str(self._image_path), cv2.IMREAD_COLOR)
+        if bgr is None:
+            msg = f"FileImageCameraDriver could not read image: {self._image_path}"
+            raise AcquisitionError(msg)
+        self._image = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        self._opened = True
+
+    def close(self) -> None:
+        """Mark the driver as closed."""
+        self._opened = False
+
+    def capture(self, trigger_id: str | None = None) -> RawFrame:
+        """Return a copy of the loaded image as a new frame.
+
+        Args:
+            trigger_id: Identifier of the triggering event, if any.
+
+        Returns:
+            A :class:`RawFrame` wrapping a copy of the loaded image.
+
+        Raises:
+            AcquisitionError: If the driver is not open.
+        """
+        if not self._opened or self._image is None:
+            msg = "FileImageCameraDriver.capture called before open()"
+            raise AcquisitionError(msg)
+        return build_frame(self._image.copy(), self._camera_id, trigger_id=trigger_id)
 
     def is_healthy(self) -> bool:
         """Return ``True`` while the driver is open."""

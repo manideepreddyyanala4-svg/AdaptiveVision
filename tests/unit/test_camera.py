@@ -11,6 +11,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import ClassVar
 
+import cv2
 import numpy as np
 import pytest
 
@@ -19,6 +20,7 @@ from adaptivevision.camera import (
     CalibrationRectifier,
     CalibrationSelfTest,
     CameraCalibration,
+    FileImageCameraDriver,
     GoldenReference,
     NullCameraDriver,
     PreprocessingPipeline,
@@ -85,6 +87,70 @@ def test_null_camera_capture_before_open_raises() -> None:
     driver = NullCameraDriver(_config())
     with pytest.raises(AcquisitionError, match="before open"):
         driver.capture()
+
+
+def _write_bgr_image(path, bgr_pixel: tuple[int, int, int]) -> None:
+    image = np.full((4, 4, 3), bgr_pixel, dtype=np.uint8)
+    cv2.imwrite(str(path), image)
+
+
+def test_file_image_camera_is_camera_driver(tmp_path) -> None:
+    path = tmp_path / "frame.png"
+    _write_bgr_image(path, (10, 20, 30))
+    assert isinstance(FileImageCameraDriver(path), CameraDriver)
+
+
+def test_file_image_camera_open_close_lifecycle(tmp_path) -> None:
+    path = tmp_path / "frame.png"
+    _write_bgr_image(path, (10, 20, 30))
+    driver = FileImageCameraDriver(path)
+    assert driver.is_healthy() is False
+    driver.open()
+    assert driver.is_healthy() is True
+    driver.close()
+    assert driver.is_healthy() is False
+
+
+def test_file_image_camera_capture_converts_bgr_to_rgb(tmp_path) -> None:
+    path = tmp_path / "frame.png"
+    _write_bgr_image(path, (10, 20, 30))  # OpenCV file order: B=10, G=20, R=30
+    driver = FileImageCameraDriver(path, camera_id="demo-cam")
+    driver.open()
+
+    frame = driver.capture(trigger_id="trig-1")
+
+    assert frame.camera_id == "demo-cam"
+    assert frame.trigger_id == "trig-1"
+    assert frame.image.shape == (4, 4, 3)
+    assert frame.image.dtype == np.uint8
+    assert tuple(frame.image[0, 0]) == (30, 20, 10)  # RGB order: R=30, G=20, B=10
+
+
+def test_file_image_camera_capture_returns_independent_copies(tmp_path) -> None:
+    path = tmp_path / "frame.png"
+    _write_bgr_image(path, (10, 20, 30))
+    driver = FileImageCameraDriver(path)
+    driver.open()
+
+    first = driver.capture()
+    first.image[0, 0] = 255
+    second = driver.capture()
+
+    assert second.image[0, 0].tolist() != [255, 255, 255]
+
+
+def test_file_image_camera_capture_before_open_raises(tmp_path) -> None:
+    path = tmp_path / "frame.png"
+    _write_bgr_image(path, (10, 20, 30))
+    driver = FileImageCameraDriver(path)
+    with pytest.raises(AcquisitionError, match="before open"):
+        driver.capture()
+
+
+def test_file_image_camera_open_missing_file_raises(tmp_path) -> None:
+    driver = FileImageCameraDriver(tmp_path / "does-not-exist.png")
+    with pytest.raises(AcquisitionError, match="could not read"):
+        driver.open()
 
 
 def test_new_frame_id_is_unique() -> None:

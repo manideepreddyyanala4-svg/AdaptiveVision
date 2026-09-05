@@ -5,17 +5,19 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 
 from adaptivevision.app import (
     build_anomaly_detector,
+    build_camera,
     build_decision_policy,
     build_preprocessor,
     build_recipe,
     build_station,
 )
-from adaptivevision.camera import build_frame
+from adaptivevision.camera import FileImageCameraDriver, NullCameraDriver, build_frame
 from adaptivevision.common import ExecutionProvider, RectifiedFrame, Verdict
 from adaptivevision.config import DecisionPolicy as RecipeDecisionPolicy
 from adaptivevision.config import JsonRecipeStore, Recipe, StationConfig
@@ -173,6 +175,37 @@ def test_build_preprocessor_grayscale_only_without_model_input_size() -> None:
     result = preprocessor(frame)
 
     assert result.image.ndim == 2
+
+
+def test_build_preprocessor_grayscale_false_string_skips_conversion() -> None:
+    """Regression test: extra's values are always raw environment strings
+    (see config.load_config), so "False" must disable grayscale conversion
+    just like the real boolean would -- `is not False` used to silently
+    never match a string, making this setting unreachable from a real .env."""
+    config = _config(PREPROCESS_GRAYSCALE="False")
+    preprocessor = build_preprocessor(config)
+
+    frame = build_frame(np.zeros((10, 10, 3), dtype=np.uint8), "cam0")
+    result = preprocessor(frame)
+
+    assert result.image.ndim == 3
+
+
+def test_build_camera_without_demo_image_path_returns_null_driver() -> None:
+    assert isinstance(build_camera(_config()), NullCameraDriver)
+
+
+def test_build_camera_with_demo_image_path_returns_file_image_driver(tmp_path: Path) -> None:
+    image_path = tmp_path / "frame.png"
+    cv2.imwrite(str(image_path), np.full((4, 4, 3), (10, 20, 30), dtype=np.uint8))
+    config = _config(DEMO_IMAGE_PATH=str(image_path))
+
+    camera = build_camera(config)
+
+    assert isinstance(camera, FileImageCameraDriver)
+    camera.open()
+    frame = camera.capture()
+    assert frame.image.shape == (4, 4, 3)
 
 
 def test_build_station_with_model_and_recipe_produces_real_verdict(

@@ -22,6 +22,7 @@ from pathlib import Path
 
 from adaptivevision.camera import (
     CalibrationRectifier,
+    FileImageCameraDriver,
     GoldenReference,
     LocalizedPart,
     NullCameraDriver,
@@ -179,7 +180,10 @@ def build_camera(config: StationConfig) -> CameraDriver:
 
     Uses the null-object strategy: when no camera is configured, a synthetic
     :class:`~adaptivevision.camera.NullCameraDriver` is returned so the
-    walking skeleton runs without hardware.
+    walking skeleton runs without hardware. When ``DEMO_IMAGE_PATH`` is
+    configured, a :class:`~adaptivevision.camera.FileImageCameraDriver`
+    replaying that real image is returned instead -- for demonstrating a real
+    trained model without physical camera hardware.
 
     Args:
         config: The validated station configuration.
@@ -187,6 +191,10 @@ def build_camera(config: StationConfig) -> CameraDriver:
     Returns:
         A :class:`~adaptivevision.common.CameraDriver` ready to be opened.
     """
+    demo_image_path = config.extra.get("DEMO_IMAGE_PATH")
+    if demo_image_path is not None:
+        return FileImageCameraDriver(Path(str(demo_image_path)))
+
     if not config.cameras:
         # No camera configured: use a synthetic 640x480 null-object driver.
         synthetic = CameraConfig(
@@ -232,7 +240,11 @@ def build_preprocessor(config: StationConfig) -> Preprocessor:
         always receives frames matching its fixed input contract.
     """
     steps: list[PreprocessStep] = []
-    if config.extra.get("PREPROCESS_GRAYSCALE", True) is not False:
+    grayscale = config.extra.get("PREPROCESS_GRAYSCALE", True)
+    # extra's values come straight from environment strings (see
+    # config.load_config), never real booleans, so "False"/"false"/"0" must
+    # be recognized -- `is not False` would silently never match a string.
+    if str(grayscale).strip().lower() not in {"false", "0", "no"}:
         steps.append(ensure_grayscale)
     height = config.extra.get("MODEL_INPUT_HEIGHT")
     width = config.extra.get("MODEL_INPUT_WIDTH")
