@@ -1,0 +1,16 @@
+{
+  "method": "dfm_wide_resnet50_2",
+  "family": "dfm",
+  "dataset": "visa",
+  "category": "pcb1",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 1.5002082586288452,
+  "calibration_sigma": 0.12521682679653168,
+  "n_fit_images": 769,
+  "n_calibration_images": 135,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 1536,
+  "exported_utc": "2026-08-31T11:58:06.151417+00:00",
+  "test_auroc": 0.9103
+}

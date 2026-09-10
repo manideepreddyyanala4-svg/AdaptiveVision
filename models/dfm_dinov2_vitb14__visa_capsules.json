@@ -1,0 +1,16 @@
+{
+  "method": "dfm_dinov2_vitb14",
+  "family": "dfm",
+  "dataset": "visa",
+  "category": "capsules",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 1.5033349990844727,
+  "calibration_sigma": 0.13611850142478943,
+  "n_fit_images": 461,
+  "n_calibration_images": 81,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 1536,
+  "exported_utc": "2026-08-31T11:54:26.184089+00:00",
+  "test_auroc": 0.8028333333333334
+}

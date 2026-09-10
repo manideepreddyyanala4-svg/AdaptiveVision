@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "wood",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 48.84593200683594,
+  "calibration_sigma": 2.015148401260376,
+  "n_fit_images": 210,
+  "n_calibration_images": 37,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T11:41:33.989801+00:00",
+  "test_auroc": 0.9923976608187134
+}

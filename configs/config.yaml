@@ -1,0 +1,55 @@
+# AdaptiveVision AOI configuration (Milestone M21).
+#
+# Loaded by adaptivevision.config.aoi_config.load_aoi_config(). Every value
+# here has a documented, working default so the system runs out of the box --
+# but pixel_to_micron in particular is a placeholder, not a measurement: this
+# project has no physical camera connected (see docs/milestones), so there is
+# no real optical path to calibrate against. Replace it with a real value
+# (image a stage micrometer / calibration reticle at the production working
+# distance and lens magnification, then pixel_to_micron = target pitch in
+# microns / pitch in pixels) before trusting any area_um2 this system reports.
+
+metrology:
+  # Physical size, in microns, of one heatmap pixel's edge (square pixels
+  # assumed). PLACEHOLDER: mid-range value for a typical macro AOI lens at
+  # moderate working distance -- not derived from any real optical setup.
+  pixel_to_micron: 5.0
+
+  # Connected regions smaller than this many pixels are treated as heatmap
+  # noise, not reported as defects. Empirically tuned against the
+  # self-similarity heatmap (adaptivevision.inspection.anomaly.metrology,
+  # see dashboard_app.py::_compute_heatmap) on MVTec bottle at 256x256:
+  # correctly gave 1 region on every tested defective image and 0 on every
+  # tested good one. Datasets exported at very different resolutions (e.g.
+  # Severstal's 128x800) may need their own value -- this is one global
+  # default, not per-model tuned.
+  min_area_px2: 100
+
+  # When set (0-100), threshold the heatmap at this percentile of its own
+  # values instead of computing an Otsu threshold. Otsu assumes a roughly
+  # bimodal score distribution; this project's self-similarity heatmap
+  # signal is closer to unimodal-with-a-tail (see the same empirical check
+  # above), which pushed Otsu's cut to ~the median -- about half the image
+  # flagged as "foreground" on a real test image. A high percentile plus the
+  # min_area_px2 floor above is what actually distinguishes clean parts (0
+  # regions) from defective ones (1+) in practice. Note a percentile
+  # threshold alone can never report zero regions for any image, clean or
+  # not -- it always keeps its own top slice by construction; min_area_px2
+  # is what gives clean images a real chance at zero.
+  threshold_percentile: 99.5
+
+drift:
+  # Number of most recent inspection anomaly scores compared against the
+  # golden baseline distribution on each check.
+  window_size: 100
+
+  # A drift check is flagged SENSOR_DRIFT_ALERT when the two-sample KS test's
+  # p-value falls below this. 0.01 means "less than 1% chance the recent
+  # window and the baseline are drawn from the same distribution."
+  p_value_threshold: 0.01
+
+kpi:
+  # The maximum acceptable Escape Rate (defective parts misclassified as
+  # PASS) when evaluate_kpis.py searches for an operating threshold. 0.001 =
+  # 0.1%, i.e. at most 1 in 1000 defective parts may escape.
+  target_escape_rate: 0.001

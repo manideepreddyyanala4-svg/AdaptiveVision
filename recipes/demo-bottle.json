@@ -1,0 +1,14 @@
+{
+  "recipe_id": "demo-bottle",
+  "version": "1",
+  "rois": [],
+  "measurement_specs": [],
+  "inspectors": ["anomaly"],
+  "decision": {
+    "anomaly_threshold": 0.7,
+    "review_on_anomaly": false,
+    "max_defects": 0,
+    "fail_severity": "major"
+  },
+  "product_name": "MVTec bottle (demo)"
+}

@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "transistor",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 38.01588439941406,
+  "calibration_sigma": 2.661748170852661,
+  "n_fit_images": 182,
+  "n_calibration_images": 31,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T11:40:12.562794+00:00",
+  "test_auroc": 0.9402777777777778
+}

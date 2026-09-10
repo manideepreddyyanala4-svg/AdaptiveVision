@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "cable",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 42.537330627441406,
+  "calibration_sigma": 1.7375779151916504,
+  "n_fit_images": 191,
+  "n_calibration_images": 33,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T12:51:30.169652+00:00",
+  "test_auroc": 0.9658920539730135
+}

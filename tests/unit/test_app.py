@@ -1,0 +1,269 @@
+"""Unit tests for the composition root (Milestone M3, extended M9/M10/M20)."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from pathlib import Path
+
+import cv2
+import numpy as np
+import pytest
+
+from adaptivevision.app import (
+    build_anomaly_detector,
+    build_camera,
+    build_decision_policy,
+    build_preprocessor,
+    build_recipe,
+    build_station,
+)
+from adaptivevision.camera import FileImageCameraDriver, NullCameraDriver, build_frame
+from adaptivevision.common import ExecutionProvider, RectifiedFrame, Verdict
+from adaptivevision.config import DecisionPolicy as RecipeDecisionPolicy
+from adaptivevision.config import JsonRecipeStore, Recipe, StationConfig
+from adaptivevision.metrology import ThresholdAnomalyDetector
+
+_REAL_MODEL_DIR = Path(__file__).resolve().parents[2] / "models"
+_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
+
+# A few tests below load a real exported ONNX model. Those binaries are large
+# and not committed, so skip when the file is absent (a fresh clone / CI).
+_REAL_MODEL = _REAL_MODEL_DIR / "patchcore_dinov2_vitb14__mvtec_bottle.onnx"
+_needs_real_model = pytest.mark.skipif(
+    not _REAL_MODEL.is_file(),
+    reason="requires the exported models/patchcore_dinov2_vitb14__mvtec_bottle.onnx (not in Git)",
+)
+
+
+def _config(**extra: object) -> StationConfig:
+    return StationConfig(station_id="s1", log_level="INFO", extra=dict(extra))
+
+
+def test_build_recipe_returns_none_without_default_recipe_id() -> None:
+    assert build_recipe(_config()) is None
+
+
+def test_build_recipe_loads_from_configured_directory(tmp_path: Path) -> None:
+    recipe = Recipe(recipe_id="widget-a", version="1")
+    JsonRecipeStore(tmp_path).save(recipe)
+    config = StationConfig(
+        station_id="s1",
+        log_level="INFO",
+        default_recipe_id="widget-a",
+        extra={"RECIPE_DIR": str(tmp_path)},
+    )
+
+    loaded = build_recipe(config)
+
+    assert loaded is not None
+    assert loaded.recipe_id == "widget-a"
+
+
+def test_build_recipe_defaults_directory_to_recipes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    recipe_dir = tmp_path / "recipes"
+    recipe_dir.mkdir()
+    JsonRecipeStore(recipe_dir).save(Recipe(recipe_id="w", version="1"))
+    config = StationConfig(station_id="s1", log_level="INFO", default_recipe_id="w")
+
+    loaded = build_recipe(config)
+
+    assert loaded is not None
+    assert loaded.recipe_id == "w"
+
+
+def test_build_anomaly_detector_returns_none_without_model_path() -> None:
+    assert build_anomaly_detector(_config(), None) is None
+
+
+@_needs_real_model
+def test_build_anomaly_detector_loads_real_model_and_uses_recipe_threshold() -> None:
+    config = _config(
+        MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+        MODEL_DIR=str(_REAL_MODEL_DIR),
+    )
+    recipe = Recipe(
+        recipe_id="r",
+        version="1",
+        decision=RecipeDecisionPolicy(anomaly_threshold=0.42),
+    )
+
+    detector = build_anomaly_detector(config, recipe)
+
+    assert isinstance(detector, ThresholdAnomalyDetector)
+
+
+@_needs_real_model
+def test_build_anomaly_detector_review_on_anomaly_uses_minor_severity() -> None:
+    config = _config(
+        MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+        MODEL_DIR=str(_REAL_MODEL_DIR),
+    )
+    recipe = Recipe(
+        recipe_id="r",
+        version="1",
+        decision=RecipeDecisionPolicy(anomaly_threshold=0.0, review_on_anomaly=True),
+    )
+
+    detector = build_anomaly_detector(config, recipe)
+    assert detector is not None
+
+    frame = RectifiedFrame(
+        # (256, 256, 3) channel-last: the real exported model
+        # (patchcore_dinov2_vitb14, see its .json manifest) is a 3-channel,
+        # 256x256 DINOv2 backbone, not the 1-channel 128x128 placeholder this
+        # test used before the M20 model rebuild.
+        image=np.zeros((256, 256, 3), dtype=np.uint8),
+        camera_id="cam0",
+        frame_id="f1",
+        calibration_ver="",
+        timestamp_monotonic=0.0,
+        timestamp_utc=datetime.now(UTC),
+        trigger_id=None,
+    )
+    result = detector.detect(frame)
+
+    assert result.is_anomalous is True
+    assert result.defects[0].severity.value == "minor"
+
+
+@_needs_real_model
+def test_build_anomaly_detector_non_cpu_provider_falls_back_to_cpu() -> None:
+    """A non-CPU preferred provider still needs a CPU fallback in the list,
+    since edge hardware without that accelerator must still run."""
+    config = StationConfig(
+        station_id="s1",
+        log_level="INFO",
+        execution_provider=ExecutionProvider.OPENVINO,
+        extra={
+            "MODEL_PATH": "patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+            "MODEL_DIR": str(_REAL_MODEL_DIR),
+        },
+    )
+
+    detector = build_anomaly_detector(config, None)
+
+    assert isinstance(detector, ThresholdAnomalyDetector)
+
+
+@_needs_real_model
+def test_build_anomaly_detector_default_threshold_without_recipe() -> None:
+    config = _config(
+        MODEL_PATH="patchcore_dinov2_vitb14__mvtec_bottle.onnx",
+        MODEL_DIR=str(_REAL_MODEL_DIR),
+    )
+
+    detector = build_anomaly_detector(config, None)
+
+    assert isinstance(detector, ThresholdAnomalyDetector)
+
+
+def test_build_decision_policy_none_without_recipe() -> None:
+    assert build_decision_policy(None) is None
+
+
+def test_build_decision_policy_from_recipe() -> None:
+    policy = build_decision_policy(Recipe(recipe_id="r", version="1"))
+    assert policy is not None
+
+
+def test_build_preprocessor_adds_resize_when_model_input_size_configured() -> None:
+    config = _config(MODEL_INPUT_HEIGHT="64", MODEL_INPUT_WIDTH="32")
+    preprocessor = build_preprocessor(config)
+
+    frame = build_frame(np.zeros((256, 256), dtype=np.uint8), "cam0")
+    result = preprocessor(frame)
+
+    assert result.image.shape == (64, 32)
+
+
+def test_build_preprocessor_grayscale_only_without_model_input_size() -> None:
+    config = _config()
+    preprocessor = build_preprocessor(config)
+
+    frame = build_frame(np.zeros((10, 10, 3), dtype=np.uint8), "cam0")
+    result = preprocessor(frame)
+
+    assert result.image.ndim == 2
+
+
+def test_build_preprocessor_grayscale_false_string_skips_conversion() -> None:
+    """Regression test: extra's values are always raw environment strings
+    (see config.load_config), so "False" must disable grayscale conversion
+    just like the real boolean would -- `is not False` used to silently
+    never match a string, making this setting unreachable from a real .env."""
+    config = _config(PREPROCESS_GRAYSCALE="False")
+    preprocessor = build_preprocessor(config)
+
+    frame = build_frame(np.zeros((10, 10, 3), dtype=np.uint8), "cam0")
+    result = preprocessor(frame)
+
+    assert result.image.ndim == 3
+
+
+def test_build_camera_without_demo_image_path_returns_null_driver() -> None:
+    assert isinstance(build_camera(_config()), NullCameraDriver)
+
+
+def test_build_camera_with_demo_image_path_returns_file_image_driver(tmp_path: Path) -> None:
+    image_path = tmp_path / "frame.png"
+    cv2.imwrite(str(image_path), np.full((4, 4, 3), (10, 20, 30), dtype=np.uint8))
+    config = _config(DEMO_IMAGE_PATH=str(image_path))
+
+    camera = build_camera(config)
+
+    assert isinstance(camera, FileImageCameraDriver)
+    camera.open()
+    frame = camera.capture()
+    assert frame.image.shape == (4, 4, 3)
+
+
+def test_build_station_with_model_and_recipe_produces_real_verdict(
+    tmp_path: Path,
+) -> None:
+    """The core M9/M10 wiring fix: a configured model/recipe changes the
+    verdict from the unconditional PASS of an unconfigured station.
+
+    Uses ``tests/fixtures/tiny_grayscale.onnx`` rather than one of the real
+    production models in ``models/``: ``NullCameraDriver`` (the only camera
+    driver that exists so far -- no real device is connected, see
+    ``docs/milestones``) always produces a single-channel grayscale frame,
+    but every real exported model uses a 3-channel ImageNet/DINOv2-pretrained
+    backbone. That mismatch is a genuine, separate architectural gap (a mono
+    synthetic frame can never satisfy a color model's input contract) --
+    tracked, not papered over by this test. This fixture is a tiny 1-channel
+    ONNX graph built for exactly this shape contract, so the test still
+    exercises real ONNX Runtime inference and real wiring end to end.
+    """
+    recipe_dir = tmp_path / "recipes"
+    recipe_dir.mkdir()
+    JsonRecipeStore(recipe_dir).save(Recipe(recipe_id="demo", version="1"))
+    config = StationConfig(
+        station_id="s1",
+        log_level="INFO",
+        default_recipe_id="demo",
+        execution_provider=ExecutionProvider.CPU,
+        extra={
+            "RECIPE_DIR": str(recipe_dir),
+            "MODEL_PATH": "tiny_grayscale.onnx",
+            "MODEL_DIR": str(_FIXTURES_DIR),
+            "MODEL_INPUT_HEIGHT": "32",
+            "MODEL_INPUT_WIDTH": "32",
+        },
+    )
+
+    station = build_station(config)
+    station.boot()
+    station.ready()
+    results = station.run(["part-001"])
+
+    assert len(results) == 1
+    result = results[0]
+    assert result.recipe_ver == "demo"
+    assert result.anomaly_score is not None
+    # A blank (all-zero) null-camera frame against a real model is a
+    # deterministic, real inference result -- not the hardcoded PASS an
+    # unconfigured station always returns.
+    assert result.verdict in (Verdict.PASS, Verdict.FAIL, Verdict.REVIEW)

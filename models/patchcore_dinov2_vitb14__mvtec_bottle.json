@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "bottle",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 31.8812255859375,
+  "calibration_sigma": 3.2385172843933105,
+  "n_fit_images": 178,
+  "n_calibration_images": 31,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T12:36:34.159103+00:00",
+  "test_auroc": 0.9997354497354497
+}

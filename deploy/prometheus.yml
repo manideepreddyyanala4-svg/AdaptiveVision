@@ -1,0 +1,16 @@
+# AdaptiveVision Prometheus scrape configuration (Milestone M18).
+#
+# Prometheus scrapes the AdaptiveVision API /metrics endpoint (Prometheus text
+# exposition format) for edge observability.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: adaptivevision
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          station: station-01

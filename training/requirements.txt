@@ -1,0 +1,23 @@
+# Training-only dependencies (not part of the production src/scripts tree).
+# Install with: pip install -r training/requirements.txt
+# numpy / opencv-python are already provided by the adaptivevision conda env.
+torch>=2.2,<3
+onnx>=1.16,<2
+onnxruntime>=1.17,<2
+tqdm>=4.66
+
+# Benchmark sweep (training/benchmark/). timm supplies the pretrained trunks --
+# ResNet/WideResNet/ConvNeXt/EfficientNet and the DINOv2 ViTs; scikit-learn
+# supplies the ranking metrics; tabulate backs pandas' Markdown report tables.
+timm>=1.0.9
+scikit-learn>=1.4
+scipy>=1.11
+pandas>=2.0
+tabulate>=0.9
+
+# Optional: adds ~26 gradient-trained models (EfficientAD, Dinomaly, GLASS,
+# FastFlow, Reverse Distillation, ...) to the sweep. The benchmark runs
+# without it, registering the native zoo only.
+# Install AFTER torch so pip does not replace a CUDA-matched build:
+#   pip install anomalib
+# anomalib>=2.6

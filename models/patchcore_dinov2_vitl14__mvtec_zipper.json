@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitl14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "zipper",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 36.995845794677734,
+  "calibration_sigma": 3.2171883583068848,
+  "n_fit_images": 204,
+  "n_calibration_images": 36,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T11:43:29.012604+00:00",
+  "test_auroc": 0.9870448179271708
+}

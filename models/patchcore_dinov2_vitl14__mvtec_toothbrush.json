@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitl14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "toothbrush",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 37.84748840332031,
+  "calibration_sigma": 2.290954828262329,
+  "n_fit_images": 51,
+  "n_calibration_images": 9,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-08-31T11:38:47.332154+00:00",
+  "test_auroc": 0.9314814814814815
+}

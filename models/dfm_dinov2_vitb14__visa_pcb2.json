@@ -1,0 +1,16 @@
+{
+  "method": "dfm_dinov2_vitb14",
+  "family": "dfm",
+  "dataset": "visa",
+  "category": "pcb2",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 1.2691137790679932,
+  "calibration_sigma": 0.0988122895359993,
+  "n_fit_images": 766,
+  "n_calibration_images": 135,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 1536,
+  "exported_utc": "2026-09-01T04:04:11.849879+00:00",
+  "test_auroc": 0.8249999999999998
+}

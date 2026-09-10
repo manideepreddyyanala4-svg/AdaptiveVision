@@ -1,0 +1,16 @@
+{
+  "method": "patchcore_dinov2_vitb14",
+  "family": "patchcore",
+  "dataset": "mvtec",
+  "category": "screw",
+  "height": 256,
+  "width": 256,
+  "calibration_mu": 43.271697998046875,
+  "calibration_sigma": 1.5941689014434814,
+  "n_fit_images": 272,
+  "n_calibration_images": 48,
+  "recommended_threshold": 0.5,
+  "embedding_dim": 384,
+  "exported_utc": "2026-09-01T04:02:24.918806+00:00",
+  "test_auroc": 0.7604700416752067
+}

@@ -1,0 +1,78 @@
+# --- Secrets / local config ---------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*_rsa
+*_rsa.pub
+credentials.json
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.installed.cfg
+
+# --- Virtual environments --------------------------------------------------
+.venv/
+venv/
+env/
+.python-version
+
+# --- Tooling caches -------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- IDE / OS -----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Datasets (never committed; see README for sources) ----------------
+/mvtec/
+/VisA_20220922/
+/KolektorSDD2/
+/severstal-steel-defect-detection/
+data/
+
+# --- Model binaries and derived artifacts -----------------------------
+models/*.onnx
+models/*.npz
+models/*.pt
+models/*.pth
+*.ckpt
+
+# --- Databases -------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+
+# --- Runtime output ------------------------------------------------
+images/
+logs/
+*.log
+
+# --- Research sweep output (can be hundreds of GB) --------------
+training/benchmark_results/
+training/archive/
+training/logs/
+
+# --- Private / internal notes (kept out of the public repo) -----
+docs/INTERVIEW_GUIDE.md
+docs/INTERVIEW_DEMO.md
+docs/ROLE_MAP.md
+docs/CLAIM_EVIDENCE.md
+docs/ADAPTIVEVISION_FULL_REPOSITORY_AUDIT.md
+docs/*_PRIVATE*.md
